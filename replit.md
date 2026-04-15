@@ -24,4 +24,23 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
+## Artifacts
+
+- **API Server** (`artifacts/api-server`) — shared Express API mounted at `/api`.
+- **Canvas** (`artifacts/mockup-sandbox`) — design/mockup sandbox mounted at `/__mockup`.
+- **OptMails** (`artifacts/optmails`) — React/Vite website mounted at `/` for the optometry research newsletter.
+
+## OptMails Implementation
+
+OptMails provides a public optometry research newsletter website plus an editorial portal. The public site features curated research articles, the current monthly issue, newsletter subscription, research/content submission, and contributor opportunities for photography, digital design, and writing. The `/portal` route supports submission review, subscriber visibility, dashboard summaries, and queued notification previews.
+
+Database tables live in `lib/db/src/schema/optmails.ts`:
+
+- `optmails_articles`
+- `optmails_subscribers`
+- `optmails_submissions`
+- `optmails_notifications`
+
+API routes live in `artifacts/api-server/src/routes/optmails.ts` and are defined contract-first in `lib/api-spec/openapi.yaml`. Email delivery is represented by queued notification preview records; connecting a mail provider such as SendGrid, Resend, Gmail, or Outlook can turn queued records into live outgoing emails.
+
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

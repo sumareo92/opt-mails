@@ -8,3 +8,104 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface Article {
+  id: number;
+  title: string;
+  authors: string;
+  summary: string;
+  category: string;
+  sourceUrl: string;
+  issueMonth: string;
+  readMinutes: number;
+  featured: boolean;
+  createdAt: string;
+}
+
+export interface NewsletterIssue {
+  id: number;
+  month: string;
+  title: string;
+  editorNote: string;
+  status: string;
+  articles: Article[];
+}
+
+export interface Subscriber {
+  id: number;
+  email: string;
+  name: string;
+  audienceType: string;
+  country: string;
+  interests: string;
+  createdAt: string;
+}
+
+export interface CreateSubscriberRequest {
+  email: string;
+  name: string;
+  audienceType: string;
+  country: string;
+  interests?: string;
+}
+
+export interface Submission {
+  id: number;
+  submitterName: string;
+  email: string;
+  institution: string;
+  country: string;
+  contributionType: string;
+  title: string;
+  abstract: string;
+  link: string;
+  status: string;
+  reviewerNote: string;
+  createdAt: string;
+}
+
+export interface CreateSubmissionRequest {
+  submitterName: string;
+  email: string;
+  institution?: string;
+  country: string;
+  contributionType: string;
+  title: string;
+  abstract: string;
+  link?: string;
+}
+
+export interface UpdateSubmissionRequest {
+  status: string;
+  reviewerNote?: string;
+}
+
+export interface Notification {
+  id: number;
+  subject: string;
+  body: string;
+  audienceCount: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface CreateNotificationRequest {
+  subject: string;
+  body: string;
+}
+
+export type DashboardSummaryStatusBreakdownItem = {
+  status: string;
+  count: number;
+};
+
+export interface DashboardSummary {
+  subscriberCount: number;
+  submissionCount: number;
+  pendingReviewCount: number;
+  acceptedCount: number;
+  countriesReached: number;
+  articleCount: number;
+  recentSubmissions: Submission[];
+  statusBreakdown: DashboardSummaryStatusBreakdownItem[];
+}

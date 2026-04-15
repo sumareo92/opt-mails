@@ -14,3 +14,187 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List featured research articles
+ */
+export const ListArticlesResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  authors: zod.string(),
+  summary: zod.string(),
+  category: zod.string(),
+  sourceUrl: zod.string(),
+  issueMonth: zod.string(),
+  readMinutes: zod.number(),
+  featured: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListArticlesResponse = zod.array(ListArticlesResponseItem);
+
+/**
+ * @summary Get the current newsletter issue
+ */
+export const GetNewsletterResponse = zod.object({
+  id: zod.number(),
+  month: zod.string(),
+  title: zod.string(),
+  editorNote: zod.string(),
+  status: zod.string(),
+  articles: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      authors: zod.string(),
+      summary: zod.string(),
+      category: zod.string(),
+      sourceUrl: zod.string(),
+      issueMonth: zod.string(),
+      readMinutes: zod.number(),
+      featured: zod.boolean(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary List newsletter subscribers
+ */
+export const ListSubscribersResponseItem = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  name: zod.string(),
+  audienceType: zod.string(),
+  country: zod.string(),
+  interests: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListSubscribersResponse = zod.array(ListSubscribersResponseItem);
+
+/**
+ * @summary Subscribe to the monthly newsletter
+ */
+export const CreateSubscriberBody = zod.object({
+  email: zod.string().email(),
+  name: zod.string(),
+  audienceType: zod.string(),
+  country: zod.string(),
+  interests: zod.string().optional(),
+});
+
+/**
+ * @summary List content and research submissions
+ */
+export const ListSubmissionsResponseItem = zod.object({
+  id: zod.number(),
+  submitterName: zod.string(),
+  email: zod.string(),
+  institution: zod.string(),
+  country: zod.string(),
+  contributionType: zod.string(),
+  title: zod.string(),
+  abstract: zod.string(),
+  link: zod.string(),
+  status: zod.string(),
+  reviewerNote: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListSubmissionsResponse = zod.array(ListSubmissionsResponseItem);
+
+/**
+ * @summary Submit research or newsletter contribution
+ */
+export const CreateSubmissionBody = zod.object({
+  submitterName: zod.string(),
+  email: zod.string().email(),
+  institution: zod.string().optional(),
+  country: zod.string(),
+  contributionType: zod.string(),
+  title: zod.string(),
+  abstract: zod.string(),
+  link: zod.string().optional(),
+});
+
+/**
+ * @summary Update submission review status
+ */
+export const UpdateSubmissionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSubmissionBody = zod.object({
+  status: zod.string(),
+  reviewerNote: zod.string().optional(),
+});
+
+export const UpdateSubmissionResponse = zod.object({
+  id: zod.number(),
+  submitterName: zod.string(),
+  email: zod.string(),
+  institution: zod.string(),
+  country: zod.string(),
+  contributionType: zod.string(),
+  title: zod.string(),
+  abstract: zod.string(),
+  link: zod.string(),
+  status: zod.string(),
+  reviewerNote: zod.string(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary List newsletter notification activity
+ */
+export const ListNotificationsResponseItem = zod.object({
+  id: zod.number(),
+  subject: zod.string(),
+  body: zod.string(),
+  audienceCount: zod.number(),
+  status: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListNotificationsResponse = zod.array(
+  ListNotificationsResponseItem,
+);
+
+/**
+ * @summary Queue a newsletter email notification preview
+ */
+export const CreateNotificationPreviewBody = zod.object({
+  subject: zod.string(),
+  body: zod.string(),
+});
+
+/**
+ * @summary Get submission and newsletter summary
+ */
+export const GetDashboardResponse = zod.object({
+  subscriberCount: zod.number(),
+  submissionCount: zod.number(),
+  pendingReviewCount: zod.number(),
+  acceptedCount: zod.number(),
+  countriesReached: zod.number(),
+  articleCount: zod.number(),
+  recentSubmissions: zod.array(
+    zod.object({
+      id: zod.number(),
+      submitterName: zod.string(),
+      email: zod.string(),
+      institution: zod.string(),
+      country: zod.string(),
+      contributionType: zod.string(),
+      title: zod.string(),
+      abstract: zod.string(),
+      link: zod.string(),
+      status: zod.string(),
+      reviewerNote: zod.string(),
+      createdAt: zod.string(),
+    }),
+  ),
+  statusBreakdown: zod.array(
+    zod.object({
+      status: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});

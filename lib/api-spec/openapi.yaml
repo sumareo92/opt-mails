@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: optmails
+    description: OptMails newsletter and research sharing operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,162 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /articles:
+    get:
+      operationId: listArticles
+      tags: [optmails]
+      summary: List featured research articles
+      responses:
+        "200":
+          description: Research articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+  /newsletter:
+    get:
+      operationId: getNewsletter
+      tags: [optmails]
+      summary: Get the current newsletter issue
+      responses:
+        "200":
+          description: Current newsletter issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsletterIssue"
+  /subscribers:
+    get:
+      operationId: listSubscribers
+      tags: [optmails]
+      summary: List newsletter subscribers
+      responses:
+        "200":
+          description: Subscribers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscriber"
+    post:
+      operationId: createSubscriber
+      tags: [optmails]
+      summary: Subscribe to the monthly newsletter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriberRequest"
+      responses:
+        "201":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscriber"
+  /submissions:
+    get:
+      operationId: listSubmissions
+      tags: [optmails]
+      summary: List content and research submissions
+      responses:
+        "200":
+          description: Submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+    post:
+      operationId: createSubmission
+      tags: [optmails]
+      summary: Submit research or newsletter contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubmissionRequest"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+  /submissions/{id}:
+    patch:
+      operationId: updateSubmission
+      tags: [optmails]
+      summary: Update submission review status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubmissionRequest"
+      responses:
+        "200":
+          description: Updated submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [optmails]
+      summary: List newsletter notification activity
+      responses:
+        "200":
+          description: Notification log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+  /notifications/preview-send:
+    post:
+      operationId: createNotificationPreview
+      tags: [optmails]
+      summary: Queue a newsletter email notification preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "201":
+          description: Notification queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [optmails]
+      summary: Get submission and newsletter summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +190,189 @@ components:
           type: string
       required:
         - status
-
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        authors:
+          type: string
+        summary:
+          type: string
+        category:
+          type: string
+        sourceUrl:
+          type: string
+        issueMonth:
+          type: string
+        readMinutes:
+          type: integer
+        featured:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, title, authors, summary, category, sourceUrl, issueMonth, readMinutes, featured, createdAt]
+    NewsletterIssue:
+      type: object
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+        title:
+          type: string
+        editorNote:
+          type: string
+        status:
+          type: string
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+      required: [id, month, title, editorNote, status, articles]
+    Subscriber:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        audienceType:
+          type: string
+        country:
+          type: string
+        interests:
+          type: string
+        createdAt:
+          type: string
+      required: [id, email, name, audienceType, country, interests, createdAt]
+    CreateSubscriberRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        audienceType:
+          type: string
+        country:
+          type: string
+        interests:
+          type: string
+      required: [email, name, audienceType, country]
+    Submission:
+      type: object
+      properties:
+        id:
+          type: integer
+        submitterName:
+          type: string
+        email:
+          type: string
+        institution:
+          type: string
+        country:
+          type: string
+        contributionType:
+          type: string
+        title:
+          type: string
+        abstract:
+          type: string
+        link:
+          type: string
+        status:
+          type: string
+        reviewerNote:
+          type: string
+        createdAt:
+          type: string
+      required: [id, submitterName, email, institution, country, contributionType, title, abstract, link, status, reviewerNote, createdAt]
+    CreateSubmissionRequest:
+      type: object
+      properties:
+        submitterName:
+          type: string
+        email:
+          type: string
+          format: email
+        institution:
+          type: string
+        country:
+          type: string
+        contributionType:
+          type: string
+        title:
+          type: string
+        abstract:
+          type: string
+        link:
+          type: string
+      required: [submitterName, email, country, contributionType, title, abstract]
+    UpdateSubmissionRequest:
+      type: object
+      properties:
+        status:
+          type: string
+        reviewerNote:
+          type: string
+      required: [status]
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        subject:
+          type: string
+        body:
+          type: string
+        audienceCount:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+      required: [id, subject, body, audienceCount, status, createdAt]
+    CreateNotificationRequest:
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+      required: [subject, body]
+    DashboardSummary:
+      type: object
+      properties:
+        subscriberCount:
+          type: integer
+        submissionCount:
+          type: integer
+        pendingReviewCount:
+          type: integer
+        acceptedCount:
+          type: integer
+        countriesReached:
+          type: integer
+        articleCount:
+          type: integer
+        recentSubmissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Submission"
+        statusBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+            required: [status, count]
+      required: [subscriberCount, submissionCount, pendingReviewCount, acceptedCount, countriesReached, articleCount, recentSubmissions, statusBreakdown]

@@ -6,4 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./article";
+export * from "./createNotificationRequest";
+export * from "./createSubmissionRequest";
+export * from "./createSubscriberRequest";
+export * from "./dashboardSummary";
+export * from "./dashboardSummaryStatusBreakdownItem";
 export * from "./healthStatus";
+export * from "./newsletterIssue";
+export * from "./notification";
+export * from "./submission";
+export * from "./subscriber";
+export * from "./updateSubmissionRequest";
