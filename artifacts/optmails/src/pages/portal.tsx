@@ -6,6 +6,8 @@ import {
   CheckCircle2, 
   Clock,
   Download,
+  ExternalLink,
+  HeartHandshake,
   Pencil,
   Plus,
   Trash2,
@@ -34,6 +36,18 @@ import {
   useCreateTeamMember,
   useUpdateTeamMember,
   useDeleteTeamMember,
+  useListDonationMethods,
+  useCreateDonationMethod,
+  useUpdateDonationMethod,
+  useDeleteDonationMethod,
+  useListDonations,
+  useCreateDonation,
+  useDeleteDonation,
+  useGetFundraisingCampaign,
+  useUpdateFundraisingCampaign,
+  getListDonationMethodsQueryKey,
+  getListDonationsQueryKey,
+  getGetFundraisingCampaignQueryKey,
   useUpdateSubmission,
   useCreateNotificationPreview,
   useCreateEvent,
@@ -45,7 +59,7 @@ import {
   getListEventRsvpsQueryKey,
   getListTeamMembersQueryKey,
 } from "@workspace/api-client-react";
-import type { TeamMember } from "@workspace/api-zod";
+import type { TeamMember, DonationMethod, Donation } from "@workspace/api-zod";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -450,6 +464,573 @@ function TeamTab() {
   );
 }
 
+const PROVIDER_OPTIONS = [
+  { value: "paypal", label: "PayPal" },
+  { value: "google_pay", label: "Google Pay" },
+  { value: "stripe_link", label: "Stripe Payment Link" },
+  { value: "venmo", label: "Venmo" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "other", label: "Other" },
+];
+
+const donationMethodSchema = z.object({
+  provider: z.string().min(1, "Provider required"),
+  label: z.string().min(2, "Label required"),
+  url: z.string().optional().default(""),
+  instructions: z.string().optional().default(""),
+  description: z.string().optional().default(""),
+  sortOrder: z.coerce.number().int().min(0).optional().default(0),
+  active: z.boolean().optional().default(true),
+});
+
+const donationSchema = z.object({
+  donorName: z.string().min(2, "Donor name required"),
+  donorEmail: z.string().email("Valid email").optional().or(z.literal("")),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  currency: z.string().min(3).max(3).default("USD"),
+  method: z.string().optional().default(""),
+  note: z.string().optional().default(""),
+  status: z.string().default("Received"),
+});
+
+const campaignSchema = z.object({
+  title: z.string().min(2, "Title required"),
+  description: z.string().optional().default(""),
+  goal: z.coerce.number().min(0, "Goal must be 0 or greater"),
+  currency: z.string().min(3).max(3).default("USD"),
+  active: z.boolean().default(true),
+});
+
+function formatMoney(cents: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+}
+
+function DonationMethodFormDialog({
+  trigger,
+  title,
+  initial,
+  onSubmit,
+  isSubmitting,
+}: {
+  trigger: React.ReactNode;
+  title: string;
+  initial?: Partial<z.infer<typeof donationMethodSchema>>;
+  onSubmit: (values: z.infer<typeof donationMethodSchema>, close: () => void) => void;
+  isSubmitting: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof donationMethodSchema>>({
+    resolver: zodResolver(donationMethodSchema),
+    defaultValues: {
+      provider: initial?.provider ?? "paypal",
+      label: initial?.label ?? "",
+      url: initial?.url ?? "",
+      instructions: initial?.instructions ?? "",
+      description: initial?.description ?? "",
+      sortOrder: initial?.sortOrder ?? 0,
+      active: initial?.active ?? true,
+    },
+  });
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Configure how donors send funds. Public page will link out to the URL or display the instructions.</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => onSubmit(v, () => setOpen(false)))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="provider" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Provider</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger data-testid="select-method-provider"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {PROVIDER_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="label" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Display label</FormLabel>
+                  <FormControl><Input placeholder="Give via PayPal" {...field} data-testid="input-method-label" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="url" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Donation URL (optional)</FormLabel>
+                <FormControl><Input placeholder="https://paypal.me/optmails" {...field} data-testid="input-method-url" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="instructions" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Instructions (optional)</FormLabel>
+                <FormControl><Textarea className="min-h-[80px]" placeholder="Bank: ... Account #: ... Reference: OptMails" {...field} data-testid="input-method-instructions" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Short description</FormLabel>
+                <FormControl><Input placeholder="Fastest option, accepts cards and PayPal balance" {...field} data-testid="input-method-description" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="sortOrder" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Display order</FormLabel>
+                  <FormControl><Input type="number" min={0} {...field} data-testid="input-method-sort" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="active" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value ? "true" : "false"} onValueChange={(v) => field.onChange(v === "true")}>
+                    <FormControl><SelectTrigger data-testid="select-method-active"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="true">Active</SelectItem>
+                      <SelectItem value="false">Hidden</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting} data-testid="button-save-method">{isSubmitting ? "Saving..." : "Save method"}</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LogDonationDialog({
+  methods,
+  onSubmit,
+  isSubmitting,
+}: {
+  methods: DonationMethod[];
+  onSubmit: (values: z.infer<typeof donationSchema>, close: () => void) => void;
+  isSubmitting: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof donationSchema>>({
+    resolver: zodResolver(donationSchema),
+    defaultValues: { donorName: "", donorEmail: "", amount: 0, currency: "USD", method: "", note: "", status: "Received" },
+  });
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-log-donation"><Plus className="mr-2 w-4 h-4" />Log donation</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Log a received donation</DialogTitle>
+          <DialogDescription>Record contributions received through any channel. Totals on the public page update immediately.</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => onSubmit(v, () => { setOpen(false); form.reset(); }))} className="space-y-4">
+            <FormField control={form.control} name="donorName" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Donor name</FormLabel>
+                <FormControl><Input placeholder="Anonymous or name" {...field} data-testid="input-donor-name" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="amount" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Amount</FormLabel>
+                  <FormControl><Input type="number" step="0.01" min="0" {...field} data-testid="input-donation-amount" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="currency" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Currency</FormLabel>
+                  <FormControl><Input maxLength={3} {...field} data-testid="input-donation-currency" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="donorEmail" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Donor email (optional)</FormLabel>
+                <FormControl><Input type="email" {...field} data-testid="input-donor-email" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="method" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Method</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger data-testid="select-donation-method"><SelectValue placeholder="Select method" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {methods.map((m) => <SelectItem key={m.id} value={m.label}>{m.label}</SelectItem>)}
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger data-testid="select-donation-status"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Received">Received</SelectItem>
+                      <SelectItem value="Pledged">Pledged</SelectItem>
+                      <SelectItem value="Refunded">Refunded</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="note" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Note</FormLabel>
+                <FormControl><Textarea className="min-h-[70px]" placeholder="Restricted to events, in memory of..., etc." {...field} data-testid="input-donation-note" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting} data-testid="button-save-donation">{isSubmitting ? "Saving..." : "Save donation"}</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CampaignEditor({ campaign }: { campaign: { title: string; description: string; goalCents: number; currency: string; active: boolean } }) {
+  const queryClient = useQueryClient();
+  const updateCampaign = useUpdateFundraisingCampaign({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetFundraisingCampaignQueryKey() }),
+    },
+  });
+  const form = useForm<z.infer<typeof campaignSchema>>({
+    resolver: zodResolver(campaignSchema),
+    defaultValues: {
+      title: campaign.title,
+      description: campaign.description,
+      goal: campaign.goalCents / 100,
+      currency: campaign.currency,
+      active: campaign.active,
+    },
+  });
+  return (
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit((v) =>
+          updateCampaign.mutate({
+            data: {
+              title: v.title,
+              description: v.description ?? "",
+              goalCents: Math.round(v.goal * 100),
+              currency: v.currency,
+              active: v.active,
+            },
+          })
+        )}
+        className="space-y-4"
+      >
+        <FormField control={form.control} name="title" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Campaign title</FormLabel>
+            <FormControl><Input {...field} data-testid="input-campaign-title" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField control={form.control} name="description" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl><Textarea className="min-h-[110px]" {...field} data-testid="input-campaign-description" /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <div className="grid grid-cols-3 gap-3">
+          <FormField control={form.control} name="goal" render={({ field }) => (
+            <FormItem className="col-span-2">
+              <FormLabel>Goal amount</FormLabel>
+              <FormControl><Input type="number" step="100" min="0" {...field} data-testid="input-campaign-goal" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="currency" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Currency</FormLabel>
+              <FormControl><Input maxLength={3} {...field} data-testid="input-campaign-currency" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+        <FormField control={form.control} name="active" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Status</FormLabel>
+            <Select value={field.value ? "true" : "false"} onValueChange={(v) => field.onChange(v === "true")}>
+              <FormControl><SelectTrigger data-testid="select-campaign-active"><SelectValue /></SelectTrigger></FormControl>
+              <SelectContent>
+                <SelectItem value="true">Active (visible on Donate page)</SelectItem>
+                <SelectItem value="false">Hidden</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <Button type="submit" disabled={updateCampaign.isPending} data-testid="button-save-campaign">
+          {updateCampaign.isPending ? "Saving..." : "Save campaign"}
+        </Button>
+      </form>
+    </Form>
+  );
+}
+
+function FundraisingTab() {
+  const queryClient = useQueryClient();
+  const { data: campaign, isLoading: isLoadingCampaign } = useGetFundraisingCampaign({
+    query: { queryKey: getGetFundraisingCampaignQueryKey() },
+  });
+  const { data: methods } = useListDonationMethods({
+    query: { queryKey: getListDonationMethodsQueryKey() },
+  });
+  const { data: donations } = useListDonations({
+    query: { queryKey: getListDonationsQueryKey() },
+  });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getListDonationMethodsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListDonationsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetFundraisingCampaignQueryKey() });
+  };
+
+  const createMethod = useCreateDonationMethod({ mutation: { onSuccess: invalidateAll } });
+  const updateMethod = useUpdateDonationMethod({ mutation: { onSuccess: invalidateAll } });
+  const deleteMethod = useDeleteDonationMethod({ mutation: { onSuccess: invalidateAll } });
+  const createDonation = useCreateDonation({ mutation: { onSuccess: invalidateAll } });
+  const deleteDonation = useDeleteDonation({ mutation: { onSuccess: invalidateAll } });
+
+  const exportCsv = () => {
+    const rows = donations ?? [];
+    const header = ["Date", "Donor", "Email", "Amount", "Currency", "Method", "Status", "Note"];
+    const csv = [header.join(",")]
+      .concat(
+        rows.map((d) =>
+          [
+            format(new Date(d.createdAt), "yyyy-MM-dd HH:mm"),
+            `"${d.donorName.replace(/"/g, '""')}"`,
+            d.donorEmail,
+            (d.amountCents / 100).toFixed(2),
+            d.currency,
+            `"${d.method.replace(/"/g, '""')}"`,
+            d.status,
+            `"${d.note.replace(/"/g, '""')}"`,
+          ].join(",")
+        )
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `optmails-donations-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoadingCampaign || !campaign) {
+    return <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>;
+  }
+
+  const progressPct = campaign.goalCents > 0 ? Math.min(100, Math.round((campaign.raisedCents / campaign.goalCents) * 100)) : 0;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-serif mb-2">Fundraising</h1>
+        <p className="text-muted-foreground">Configure how donors send funds, log received contributions, and track progress against your campaign goal.</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Campaign progress</CardTitle>
+          <CardDescription>Live totals on the public Donate page reflect every received donation logged below.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Raised</p>
+              <p className="text-2xl font-serif" data-testid="stat-raised">{formatMoney(campaign.raisedCents, campaign.currency)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Goal</p>
+              <p className="text-2xl font-serif" data-testid="stat-goal">{formatMoney(campaign.goalCents, campaign.currency)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Donors</p>
+              <p className="text-2xl font-serif" data-testid="stat-donors">{campaign.donorCount}</p>
+            </div>
+          </div>
+          <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary" style={{ width: `${progressPct}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground">{progressPct}% of goal reached</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Campaign details</CardTitle>
+          <CardDescription>This text appears at the top of the public Donate page.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CampaignEditor campaign={campaign} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Donation methods</CardTitle>
+            <CardDescription>Add the payment links and account details donors can use.</CardDescription>
+          </div>
+          <DonationMethodFormDialog
+            title="Add donation method"
+            isSubmitting={createMethod.isPending}
+            onSubmit={(v, close) => createMethod.mutate({ data: v }, { onSuccess: () => close() })}
+            trigger={<Button data-testid="button-add-method"><Plus className="mr-2 w-4 h-4" />Add method</Button>}
+          />
+        </CardHeader>
+        <CardContent>
+          {(methods ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No methods yet. Add at least one (PayPal, Stripe Payment Link, bank transfer, etc.) so donors can contribute.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {(methods ?? []).map((m) => (
+                <div key={m.id} className="py-3 flex items-start justify-between gap-4" data-testid={`method-row-${m.id}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{m.label}</span>
+                      <Badge variant="outline" className="text-xs">{PROVIDER_OPTIONS.find((p) => p.value === m.provider)?.label ?? m.provider}</Badge>
+                      {!m.active && <Badge variant="secondary" className="text-xs">Hidden</Badge>}
+                    </div>
+                    {m.description && <p className="text-sm text-muted-foreground mt-1">{m.description}</p>}
+                    {m.url && <p className="text-xs text-muted-foreground mt-1 truncate">{m.url}</p>}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <DonationMethodFormDialog
+                      title="Edit donation method"
+                      initial={m}
+                      isSubmitting={updateMethod.isPending}
+                      onSubmit={(v, close) => updateMethod.mutate({ id: m.id, data: v }, { onSuccess: () => close() })}
+                      trigger={<Button variant="outline" size="sm" data-testid={`button-edit-method-${m.id}`}><Pencil className="w-4 h-4" /></Button>}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={deleteMethod.isPending}
+                      onClick={() => { if (confirm(`Remove ${m.label}?`)) deleteMethod.mutate({ id: m.id }); }}
+                      data-testid={`button-delete-method-${m.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Donation log</CardTitle>
+            <CardDescription>Manually record contributions received via any channel.</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportCsv} disabled={(donations ?? []).length === 0} data-testid="button-export-donations">
+              <Download className="mr-2 w-4 h-4" />Export CSV
+            </Button>
+            <LogDonationDialog
+              methods={methods ?? []}
+              isSubmitting={createDonation.isPending}
+              onSubmit={(v, close) => createDonation.mutate({
+                data: {
+                  donorName: v.donorName,
+                  donorEmail: v.donorEmail || "",
+                  amountCents: Math.round(v.amount * 100),
+                  currency: v.currency,
+                  method: v.method,
+                  note: v.note,
+                  status: v.status,
+                },
+              }, { onSuccess: () => close() })}
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {(donations ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No donations logged yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Donor</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(donations ?? []).map((d: Donation) => (
+                  <TableRow key={d.id} data-testid={`donation-row-${d.id}`}>
+                    <TableCell className="text-sm text-muted-foreground">{format(new Date(d.createdAt), "MMM d, yyyy")}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{d.donorName}</div>
+                      {d.donorEmail && <div className="text-xs text-muted-foreground">{d.donorEmail}</div>}
+                    </TableCell>
+                    <TableCell className="font-medium">{formatMoney(d.amountCents, d.currency)}</TableCell>
+                    <TableCell className="text-sm">{d.method || "—"}</TableCell>
+                    <TableCell><Badge variant={d.status === "Received" ? "default" : "secondary"}>{d.status}</Badge></TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { if (confirm(`Delete this donation entry?`)) deleteDonation.mutate({ id: d.id }); }}
+                        data-testid={`button-delete-donation-${d.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function Portal() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -644,6 +1225,14 @@ export function Portal() {
             data-testid="tab-team"
           >
             <Users className="mr-2 w-4 h-4" /> Team
+          </Button>
+          <Button
+            variant={activeTab === "fundraising" ? "secondary" : "ghost"}
+            className="w-full justify-start font-medium"
+            onClick={() => setActiveTab("fundraising")}
+            data-testid="tab-fundraising"
+          >
+            <HeartHandshake className="mr-2 w-4 h-4" /> Fundraising
           </Button>
         </nav>
         <div className="p-4 border-t border-border mt-auto">
@@ -1267,6 +1856,10 @@ export function Portal() {
 
           {activeTab === "team" && (
             <TeamTab />
+          )}
+
+          {activeTab === "fundraising" && (
+            <FundraisingTab />
           )}
 
         </div>

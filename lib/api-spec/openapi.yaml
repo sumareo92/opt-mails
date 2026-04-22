@@ -207,6 +207,139 @@ paths:
       responses:
         "204":
           description: Team member deleted
+  /donation-methods:
+    get:
+      operationId: listDonationMethods
+      tags: [optmails]
+      summary: List configured donation methods
+      responses:
+        "200":
+          description: Donation methods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DonationMethod"
+    post:
+      operationId: createDonationMethod
+      tags: [optmails]
+      summary: Add a donation method
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDonationMethodRequest"
+      responses:
+        "201":
+          description: Method created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationMethod"
+  /donation-methods/{id}:
+    patch:
+      operationId: updateDonationMethod
+      tags: [optmails]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDonationMethodRequest"
+      responses:
+        "200":
+          description: Method updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationMethod"
+    delete:
+      operationId: deleteDonationMethod
+      tags: [optmails]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Method deleted
+  /donations:
+    get:
+      operationId: listDonations
+      tags: [optmails]
+      responses:
+        "200":
+          description: Donations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Donation"
+    post:
+      operationId: createDonation
+      tags: [optmails]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDonationRequest"
+      responses:
+        "201":
+          description: Donation logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Donation"
+  /donations/{id}:
+    delete:
+      operationId: deleteDonation
+      tags: [optmails]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Donation deleted
+  /fundraising/campaign:
+    get:
+      operationId: getFundraisingCampaign
+      tags: [optmails]
+      summary: Get the current fundraising campaign with progress
+      responses:
+        "200":
+          description: Campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FundraisingCampaign"
+    put:
+      operationId: updateFundraisingCampaign
+      tags: [optmails]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFundraisingCampaignRequest"
+      responses:
+        "200":
+          description: Campaign updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FundraisingCampaign"
   /subscribers:
     get:
       operationId: listSubscribers
@@ -620,6 +753,76 @@ components:
         sortOrder:
           type: integer
       required: [category, name, role]
+    DonationMethod:
+      type: object
+      properties:
+        id: { type: integer }
+        provider: { type: string }
+        label: { type: string }
+        url: { type: string }
+        instructions: { type: string }
+        description: { type: string }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+        createdAt: { type: string }
+      required: [id, provider, label, url, instructions, description, sortOrder, active, createdAt]
+    CreateDonationMethodRequest:
+      type: object
+      properties:
+        provider: { type: string }
+        label: { type: string }
+        url: { type: string }
+        instructions: { type: string }
+        description: { type: string }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+      required: [provider, label]
+    Donation:
+      type: object
+      properties:
+        id: { type: integer }
+        donorName: { type: string }
+        donorEmail: { type: string }
+        amountCents: { type: integer }
+        currency: { type: string }
+        method: { type: string }
+        note: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+      required: [id, donorName, donorEmail, amountCents, currency, method, note, status, createdAt]
+    CreateDonationRequest:
+      type: object
+      properties:
+        donorName: { type: string }
+        donorEmail: { type: string }
+        amountCents: { type: integer }
+        currency: { type: string }
+        method: { type: string }
+        note: { type: string }
+        status: { type: string }
+      required: [donorName, amountCents]
+    FundraisingCampaign:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        goalCents: { type: integer }
+        currency: { type: string }
+        active: { type: boolean }
+        raisedCents: { type: integer }
+        donorCount: { type: integer }
+        updatedAt: { type: string }
+      required: [id, title, description, goalCents, currency, active, raisedCents, donorCount, updatedAt]
+    UpdateFundraisingCampaignRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        goalCents: { type: integer }
+        currency: { type: string }
+        active: { type: boolean }
+      required: [title, goalCents, currency]
     DashboardSummary:
       type: object
       properties:

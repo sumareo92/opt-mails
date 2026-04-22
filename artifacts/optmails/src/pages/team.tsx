@@ -146,6 +146,7 @@ export function Team() {
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
             <Link href="/team" className="text-foreground transition-colors">Team</Link>
+            <Link href="/donate" className="hover:text-foreground transition-colors">Donate</Link>
             <Link href="/portal" className="text-primary hover:text-primary/80 transition-colors">Editorial Portal</Link>
           </nav>
         </div>

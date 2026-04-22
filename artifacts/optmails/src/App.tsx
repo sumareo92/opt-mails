@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import { Home } from "@/pages/home";
 import { Portal } from "@/pages/portal";
 import { Team } from "@/pages/team";
+import { Donate } from "@/pages/donate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/team" component={Team} />
+      <Route path="/donate" component={Donate} />
       <Route path="/portal" component={Portal} />
       <Route component={NotFound} />
     </Switch>

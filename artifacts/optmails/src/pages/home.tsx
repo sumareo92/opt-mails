@@ -316,6 +316,7 @@ export function Home() {
             <a href="#archive" className="hover:text-foreground transition-colors">Archive</a>
             <a href="#submit" className="hover:text-foreground transition-colors">Submit</a>
             <Link href="/team" className="hover:text-foreground transition-colors">Team</Link>
+            <Link href="/donate" className="hover:text-foreground transition-colors">Donate</Link>
             <Link href="/portal" className="text-primary hover:text-primary/80 transition-colors">Editorial Portal</Link>
           </nav>
         </div>

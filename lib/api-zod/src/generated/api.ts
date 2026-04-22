@@ -218,6 +218,129 @@ export const DeleteTeamMemberParams = zod.object({
 });
 
 /**
+ * @summary List configured donation methods
+ */
+export const ListDonationMethodsResponseItem = zod.object({
+  id: zod.number(),
+  provider: zod.string(),
+  label: zod.string(),
+  url: zod.string(),
+  instructions: zod.string(),
+  description: zod.string(),
+  sortOrder: zod.number(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListDonationMethodsResponse = zod.array(
+  ListDonationMethodsResponseItem,
+);
+
+/**
+ * @summary Add a donation method
+ */
+export const CreateDonationMethodBody = zod.object({
+  provider: zod.string(),
+  label: zod.string(),
+  url: zod.string().optional(),
+  instructions: zod.string().optional(),
+  description: zod.string().optional(),
+  sortOrder: zod.number().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateDonationMethodParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDonationMethodBody = zod.object({
+  provider: zod.string(),
+  label: zod.string(),
+  url: zod.string().optional(),
+  instructions: zod.string().optional(),
+  description: zod.string().optional(),
+  sortOrder: zod.number().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateDonationMethodResponse = zod.object({
+  id: zod.number(),
+  provider: zod.string(),
+  label: zod.string(),
+  url: zod.string(),
+  instructions: zod.string(),
+  description: zod.string(),
+  sortOrder: zod.number(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+export const DeleteDonationMethodParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListDonationsResponseItem = zod.object({
+  id: zod.number(),
+  donorName: zod.string(),
+  donorEmail: zod.string(),
+  amountCents: zod.number(),
+  currency: zod.string(),
+  method: zod.string(),
+  note: zod.string(),
+  status: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListDonationsResponse = zod.array(ListDonationsResponseItem);
+
+export const CreateDonationBody = zod.object({
+  donorName: zod.string(),
+  donorEmail: zod.string().optional(),
+  amountCents: zod.number(),
+  currency: zod.string().optional(),
+  method: zod.string().optional(),
+  note: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+export const DeleteDonationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get the current fundraising campaign with progress
+ */
+export const GetFundraisingCampaignResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  goalCents: zod.number(),
+  currency: zod.string(),
+  active: zod.boolean(),
+  raisedCents: zod.number(),
+  donorCount: zod.number(),
+  updatedAt: zod.string(),
+});
+
+export const UpdateFundraisingCampaignBody = zod.object({
+  title: zod.string(),
+  description: zod.string().optional(),
+  goalCents: zod.number(),
+  currency: zod.string(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateFundraisingCampaignResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  goalCents: zod.number(),
+  currency: zod.string(),
+  active: zod.boolean(),
+  raisedCents: zod.number(),
+  donorCount: zod.number(),
+  updatedAt: zod.string(),
+});
+
+/**
  * @summary List newsletter subscribers
  */
 export const ListSubscribersResponseItem = zod.object({

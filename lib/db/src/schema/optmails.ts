@@ -74,6 +74,40 @@ export const teamMembersTable = pgTable("optmails_team_members", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const donationMethodsTable = pgTable("optmails_donation_methods", {
+  id: serial("id").primaryKey(),
+  provider: text("provider").notNull(),
+  label: text("label").notNull(),
+  url: text("url").notNull().default(""),
+  instructions: text("instructions").notNull().default(""),
+  description: text("description").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const donationsTable = pgTable("optmails_donations", {
+  id: serial("id").primaryKey(),
+  donorName: text("donor_name").notNull(),
+  donorEmail: text("donor_email").notNull().default(""),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  method: text("method").notNull().default(""),
+  note: text("note").notNull().default(""),
+  status: text("status").notNull().default("Received"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const fundraisingCampaignTable = pgTable("optmails_fundraising_campaign", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull().default("Support OptMails"),
+  description: text("description").notNull().default(""),
+  goalCents: integer("goal_cents").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const eventRsvpsTable = pgTable("optmails_event_rsvps", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").notNull(),

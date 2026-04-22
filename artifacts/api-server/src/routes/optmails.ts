@@ -3,14 +3,29 @@ import { Router, type IRouter } from "express";
 import {
   articlesTable,
   db,
+  donationMethodsTable,
+  donationsTable,
   eventRsvpsTable,
   eventsTable,
+  fundraisingCampaignTable,
   notificationsTable,
   subscribersTable,
   submissionsTable,
   teamMembersTable,
 } from "@workspace/db";
 import {
+  CreateDonationBody,
+  CreateDonationMethodBody,
+  DeleteDonationMethodParams,
+  DeleteDonationParams,
+  GetFundraisingCampaignResponse,
+  ListDonationMethodsResponse,
+  ListDonationsResponse,
+  UpdateDonationMethodBody,
+  UpdateDonationMethodParams,
+  UpdateDonationMethodResponse,
+  UpdateFundraisingCampaignBody,
+  UpdateFundraisingCampaignResponse,
   CreateEventBody,
   CreateEventRsvpBody,
   CreateNotificationPreviewBody,
@@ -417,6 +432,195 @@ router.delete("/team-members/:id", async (req, res): Promise<void> => {
     return;
   }
   res.status(204).send();
+});
+
+const donationMethodResponse = (m: typeof donationMethodsTable.$inferSelect) => ({
+  ...m,
+  createdAt: toIso(m.createdAt),
+});
+
+const donationResponse = (d: typeof donationsTable.$inferSelect) => ({
+  ...d,
+  createdAt: toIso(d.createdAt),
+});
+
+router.get("/donation-methods", async (_req, res): Promise<void> => {
+  const methods = await db
+    .select()
+    .from(donationMethodsTable)
+    .orderBy(asc(donationMethodsTable.sortOrder), asc(donationMethodsTable.id));
+  res.json(ListDonationMethodsResponse.parse(methods.map(donationMethodResponse)));
+});
+
+router.post("/donation-methods", async (req, res): Promise<void> => {
+  const parsed = CreateDonationMethodBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [method] = await db
+    .insert(donationMethodsTable)
+    .values({
+      provider: parsed.data.provider,
+      label: parsed.data.label,
+      url: parsed.data.url ?? "",
+      instructions: parsed.data.instructions ?? "",
+      description: parsed.data.description ?? "",
+      sortOrder: parsed.data.sortOrder ?? 0,
+      active: parsed.data.active ?? true,
+    })
+    .returning();
+  res.status(201).json(ListDonationMethodsResponse.element.parse(donationMethodResponse(method)));
+});
+
+router.patch("/donation-methods/:id", async (req, res): Promise<void> => {
+  const params = UpdateDonationMethodParams.safeParse(req.params);
+  const body = UpdateDonationMethodBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+    return;
+  }
+  const [method] = await db
+    .update(donationMethodsTable)
+    .set({
+      provider: body.data.provider,
+      label: body.data.label,
+      url: body.data.url ?? "",
+      instructions: body.data.instructions ?? "",
+      description: body.data.description ?? "",
+      sortOrder: body.data.sortOrder ?? 0,
+      active: body.data.active ?? true,
+    })
+    .where(eq(donationMethodsTable.id, params.data.id))
+    .returning();
+  if (!method) {
+    res.status(404).json({ error: "Donation method not found" });
+    return;
+  }
+  res.json(UpdateDonationMethodResponse.parse(donationMethodResponse(method)));
+});
+
+router.delete("/donation-methods/:id", async (req, res): Promise<void> => {
+  const params = DeleteDonationMethodParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(donationMethodsTable)
+    .where(eq(donationMethodsTable.id, params.data.id))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Donation method not found" });
+    return;
+  }
+  res.status(204).send();
+});
+
+router.get("/donations", async (_req, res): Promise<void> => {
+  const donations = await db
+    .select()
+    .from(donationsTable)
+    .orderBy(desc(donationsTable.createdAt));
+  res.json(ListDonationsResponse.parse(donations.map(donationResponse)));
+});
+
+router.post("/donations", async (req, res): Promise<void> => {
+  const parsed = CreateDonationBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [donation] = await db
+    .insert(donationsTable)
+    .values({
+      donorName: parsed.data.donorName,
+      donorEmail: parsed.data.donorEmail ?? "",
+      amountCents: parsed.data.amountCents,
+      currency: parsed.data.currency ?? "USD",
+      method: parsed.data.method ?? "",
+      note: parsed.data.note ?? "",
+      status: parsed.data.status ?? "Received",
+    })
+    .returning();
+  res.status(201).json(ListDonationsResponse.element.parse(donationResponse(donation)));
+});
+
+router.delete("/donations/:id", async (req, res): Promise<void> => {
+  const params = DeleteDonationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(donationsTable)
+    .where(eq(donationsTable.id, params.data.id))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Donation not found" });
+    return;
+  }
+  res.status(204).send();
+});
+
+const ensureCampaign = async () => {
+  const [existing] = await db.select().from(fundraisingCampaignTable).limit(1);
+  if (existing) return existing;
+  const [created] = await db
+    .insert(fundraisingCampaignTable)
+    .values({
+      title: "Support OptMails",
+      description:
+        "Help us keep OptMails free to read for optometry students, clinicians, and researchers worldwide. Every contribution directly funds the editorial board, peer review, and the open archive.",
+      goalCents: 500000,
+      currency: "USD",
+      active: true,
+    })
+    .returning();
+  return created;
+};
+
+const buildCampaignResponse = async (campaign: typeof fundraisingCampaignTable.$inferSelect) => {
+  const donations = await db
+    .select()
+    .from(donationsTable)
+    .where(eq(donationsTable.status, "Received"));
+  const raisedCents = donations.reduce((sum, d) => sum + d.amountCents, 0);
+  return {
+    ...campaign,
+    raisedCents,
+    donorCount: donations.length,
+    updatedAt: toIso(campaign.updatedAt),
+  };
+};
+
+router.get("/fundraising/campaign", async (_req, res): Promise<void> => {
+  const campaign = await ensureCampaign();
+  const data = await buildCampaignResponse(campaign);
+  res.json(GetFundraisingCampaignResponse.parse(data));
+});
+
+router.put("/fundraising/campaign", async (req, res): Promise<void> => {
+  const parsed = UpdateFundraisingCampaignBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const existing = await ensureCampaign();
+  const [updated] = await db
+    .update(fundraisingCampaignTable)
+    .set({
+      title: parsed.data.title,
+      description: parsed.data.description ?? "",
+      goalCents: parsed.data.goalCents,
+      currency: parsed.data.currency,
+      active: parsed.data.active ?? true,
+      updatedAt: new Date(),
+    })
+    .where(eq(fundraisingCampaignTable.id, existing.id))
+    .returning();
+  const data = await buildCampaignResponse(updated);
+  res.json(UpdateFundraisingCampaignResponse.parse(data));
 });
 
 router.get("/notifications", async (_req, res): Promise<void> => {

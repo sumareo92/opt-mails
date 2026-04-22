@@ -8,6 +8,8 @@
 
 export * from "./article";
 export * from "./communityEvent";
+export * from "./createDonationMethodRequest";
+export * from "./createDonationRequest";
 export * from "./createEventRequest";
 export * from "./createEventRsvpRequest";
 export * from "./createNotificationRequest";
@@ -16,11 +18,15 @@ export * from "./createSubscriberRequest";
 export * from "./createTeamMemberRequest";
 export * from "./dashboardSummary";
 export * from "./dashboardSummaryStatusBreakdownItem";
+export * from "./donation";
+export * from "./donationMethod";
 export * from "./eventRsvp";
+export * from "./fundraisingCampaign";
 export * from "./healthStatus";
 export * from "./newsletterIssue";
 export * from "./notification";
 export * from "./submission";
 export * from "./subscriber";
 export * from "./teamMember";
+export * from "./updateFundraisingCampaignRequest";
 export * from "./updateSubmissionRequest";

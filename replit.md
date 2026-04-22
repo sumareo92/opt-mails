@@ -40,6 +40,11 @@ Database tables live in `lib/db/src/schema/optmails.ts`:
 - `optmails_subscribers`
 - `optmails_submissions`
 - `optmails_notifications`
+- `optmails_events`, `optmails_event_rsvps`
+- `optmails_team_members`
+- `optmails_donation_methods`, `optmails_donations`, `optmails_fundraising_campaign`
+
+Donations & fundraising: editors configure external giving channels (PayPal, Google Pay, Stripe Payment Link, bank transfer, etc.) in the portal Fundraising tab. The public `/donate` page renders these as cards that link out, plus a live progress bar driven by manually-logged donations. Same data model can later be wired to a Stripe webhook for direct card processing.
 
 API routes live in `artifacts/api-server/src/routes/optmails.ts` and are defined contract-first in `lib/api-spec/openapi.yaml`. Email delivery is represented by queued notification preview records; connecting a mail provider such as SendGrid, Resend, Gmail, or Outlook can turn queued records into live outgoing emails.
 

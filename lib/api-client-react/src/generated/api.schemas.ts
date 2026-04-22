@@ -159,6 +159,70 @@ export interface CreateTeamMemberRequest {
   sortOrder?: number;
 }
 
+export interface DonationMethod {
+  id: number;
+  provider: string;
+  label: string;
+  url: string;
+  instructions: string;
+  description: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateDonationMethodRequest {
+  provider: string;
+  label: string;
+  url?: string;
+  instructions?: string;
+  description?: string;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export interface Donation {
+  id: number;
+  donorName: string;
+  donorEmail: string;
+  amountCents: number;
+  currency: string;
+  method: string;
+  note: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface CreateDonationRequest {
+  donorName: string;
+  donorEmail?: string;
+  amountCents: number;
+  currency?: string;
+  method?: string;
+  note?: string;
+  status?: string;
+}
+
+export interface FundraisingCampaign {
+  id: number;
+  title: string;
+  description: string;
+  goalCents: number;
+  currency: string;
+  active: boolean;
+  raisedCents: number;
+  donorCount: number;
+  updatedAt: string;
+}
+
+export interface UpdateFundraisingCampaignRequest {
+  title: string;
+  description?: string;
+  goalCents: number;
+  currency: string;
+  active?: boolean;
+}
+
 export type DashboardSummaryStatusBreakdownItem = {
   status: string;
   count: number;
