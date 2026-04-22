@@ -145,6 +145,79 @@ export const CreateEventRsvpBody = zod.object({
 });
 
 /**
+ * @summary List team members and sponsors
+ */
+export const ListTeamMembersResponseItem = zod.object({
+  id: zod.number(),
+  category: zod.string(),
+  name: zod.string(),
+  role: zod.string(),
+  location: zod.string(),
+  bio: zod.string(),
+  email: zod.string(),
+  linkedin: zod.string(),
+  websiteUrl: zod.string(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem);
+
+/**
+ * @summary Add a team member or sponsor
+ */
+export const CreateTeamMemberBody = zod.object({
+  category: zod.string(),
+  name: zod.string(),
+  role: zod.string(),
+  location: zod.string().optional(),
+  bio: zod.string().optional(),
+  email: zod.string().optional(),
+  linkedin: zod.string().optional(),
+  websiteUrl: zod.string().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+/**
+ * @summary Update a team member or sponsor
+ */
+export const UpdateTeamMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateTeamMemberBody = zod.object({
+  category: zod.string(),
+  name: zod.string(),
+  role: zod.string(),
+  location: zod.string().optional(),
+  bio: zod.string().optional(),
+  email: zod.string().optional(),
+  linkedin: zod.string().optional(),
+  websiteUrl: zod.string().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+export const UpdateTeamMemberResponse = zod.object({
+  id: zod.number(),
+  category: zod.string(),
+  name: zod.string(),
+  role: zod.string(),
+  location: zod.string(),
+  bio: zod.string(),
+  email: zod.string(),
+  linkedin: zod.string(),
+  websiteUrl: zod.string(),
+  sortOrder: zod.number(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Remove a team member or sponsor
+ */
+export const DeleteTeamMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List newsletter subscribers
  */
 export const ListSubscribersResponseItem = zod.object({

@@ -139,6 +139,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EventRsvp"
+  /team-members:
+    get:
+      operationId: listTeamMembers
+      tags: [optmails]
+      summary: List team members and sponsors
+      responses:
+        "200":
+          description: Team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+    post:
+      operationId: createTeamMember
+      tags: [optmails]
+      summary: Add a team member or sponsor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamMemberRequest"
+      responses:
+        "201":
+          description: Team member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+  /team-members/{id}:
+    patch:
+      operationId: updateTeamMember
+      tags: [optmails]
+      summary: Update a team member or sponsor
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamMemberRequest"
+      responses:
+        "200":
+          description: Team member updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+    delete:
+      operationId: deleteTeamMember
+      tags: [optmails]
+      summary: Remove a team member or sponsor
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Team member deleted
   /subscribers:
     get:
       operationId: listSubscribers
@@ -504,6 +572,54 @@ components:
         role:
           type: string
       required: [name, email]
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        category:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        location:
+          type: string
+        bio:
+          type: string
+        email:
+          type: string
+        linkedin:
+          type: string
+        websiteUrl:
+          type: string
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, category, name, role, location, bio, email, linkedin, websiteUrl, sortOrder, createdAt]
+    CreateTeamMemberRequest:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        location:
+          type: string
+        bio:
+          type: string
+        email:
+          type: string
+        linkedin:
+          type: string
+        websiteUrl:
+          type: string
+        sortOrder:
+          type: integer
+      required: [category, name, role]
     DashboardSummary:
       type: object
       properties:

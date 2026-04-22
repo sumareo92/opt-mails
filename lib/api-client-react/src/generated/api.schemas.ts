@@ -133,6 +133,32 @@ export interface CreateEventRsvpRequest {
   role?: string;
 }
 
+export interface TeamMember {
+  id: number;
+  category: string;
+  name: string;
+  role: string;
+  location: string;
+  bio: string;
+  email: string;
+  linkedin: string;
+  websiteUrl: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface CreateTeamMemberRequest {
+  category: string;
+  name: string;
+  role: string;
+  location?: string;
+  bio?: string;
+  email?: string;
+  linkedin?: string;
+  websiteUrl?: string;
+  sortOrder?: number;
+}
+
 export type DashboardSummaryStatusBreakdownItem = {
   status: string;
   count: number;

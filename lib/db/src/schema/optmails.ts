@@ -60,6 +60,20 @@ export const eventsTable = pgTable("optmails_events", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const teamMembersTable = pgTable("optmails_team_members", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  location: text("location").notNull().default(""),
+  bio: text("bio").notNull().default(""),
+  email: text("email").notNull().default(""),
+  linkedin: text("linkedin").notNull().default(""),
+  websiteUrl: text("website_url").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const eventRsvpsTable = pgTable("optmails_event_rsvps", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").notNull(),

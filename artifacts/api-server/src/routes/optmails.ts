@@ -8,6 +8,7 @@ import {
   notificationsTable,
   subscribersTable,
   submissionsTable,
+  teamMembersTable,
 } from "@workspace/db";
 import {
   CreateEventBody,
@@ -15,6 +16,12 @@ import {
   CreateNotificationPreviewBody,
   CreateSubmissionBody,
   CreateSubscriberBody,
+  CreateTeamMemberBody,
+  UpdateTeamMemberBody,
+  UpdateTeamMemberParams,
+  DeleteTeamMemberParams,
+  ListTeamMembersResponse,
+  UpdateTeamMemberResponse,
   GetDashboardResponse,
   GetNewsletterResponse,
   ListArticlesResponse,
@@ -317,6 +324,99 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
   }
 
   res.json(UpdateSubmissionResponse.parse(submissionResponse(submission)));
+});
+
+const teamMemberResponse = (member: typeof teamMembersTable.$inferSelect) => ({
+  ...member,
+  createdAt: toIso(member.createdAt),
+});
+
+const CATEGORY_ORDER: Record<string, number> = {
+  editor_in_chief: 0,
+  webmaster: 1,
+  contributing_editor: 2,
+  sponsor: 3,
+};
+
+router.get("/team-members", async (_req, res): Promise<void> => {
+  const members = await db.select().from(teamMembersTable);
+  const sorted = [...members].sort((a, b) => {
+    const ca = CATEGORY_ORDER[a.category] ?? 99;
+    const cb = CATEGORY_ORDER[b.category] ?? 99;
+    if (ca !== cb) return ca - cb;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.id - b.id;
+  });
+  res.json(ListTeamMembersResponse.parse(sorted.map(teamMemberResponse)));
+});
+
+router.post("/team-members", async (req, res): Promise<void> => {
+  const parsed = CreateTeamMemberBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [member] = await db
+    .insert(teamMembersTable)
+    .values({
+      category: parsed.data.category,
+      name: parsed.data.name,
+      role: parsed.data.role,
+      location: parsed.data.location ?? "",
+      bio: parsed.data.bio ?? "",
+      email: parsed.data.email ?? "",
+      linkedin: parsed.data.linkedin ?? "",
+      websiteUrl: parsed.data.websiteUrl ?? "",
+      sortOrder: parsed.data.sortOrder ?? 0,
+    })
+    .returning();
+  res.status(201).json(ListTeamMembersResponse.element.parse(teamMemberResponse(member)));
+});
+
+router.patch("/team-members/:id", async (req, res): Promise<void> => {
+  const params = UpdateTeamMemberParams.safeParse(req.params);
+  const body = UpdateTeamMemberBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+    return;
+  }
+  const [member] = await db
+    .update(teamMembersTable)
+    .set({
+      category: body.data.category,
+      name: body.data.name,
+      role: body.data.role,
+      location: body.data.location ?? "",
+      bio: body.data.bio ?? "",
+      email: body.data.email ?? "",
+      linkedin: body.data.linkedin ?? "",
+      websiteUrl: body.data.websiteUrl ?? "",
+      sortOrder: body.data.sortOrder ?? 0,
+    })
+    .where(eq(teamMembersTable.id, params.data.id))
+    .returning();
+  if (!member) {
+    res.status(404).json({ error: "Team member not found" });
+    return;
+  }
+  res.json(UpdateTeamMemberResponse.parse(teamMemberResponse(member)));
+});
+
+router.delete("/team-members/:id", async (req, res): Promise<void> => {
+  const params = DeleteTeamMemberParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(teamMembersTable)
+    .where(eq(teamMembersTable.id, params.data.id))
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Team member not found" });
+    return;
+  }
+  res.status(204).send();
 });
 
 router.get("/notifications", async (_req, res): Promise<void> => {

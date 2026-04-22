@@ -6,6 +6,9 @@ import {
   CheckCircle2, 
   Clock,
   Download,
+  Pencil,
+  Plus,
+  Trash2,
   Globe2, 
   Inbox, 
   LayoutDashboard, 
@@ -27,6 +30,10 @@ import {
   useListNotifications,
   useListEvents,
   useListEventRsvps,
+  useListTeamMembers,
+  useCreateTeamMember,
+  useUpdateTeamMember,
+  useDeleteTeamMember,
   useUpdateSubmission,
   useCreateNotificationPreview,
   useCreateEvent,
@@ -36,7 +43,9 @@ import {
   getListNotificationsQueryKey,
   getListEventsQueryKey,
   getListEventRsvpsQueryKey,
+  getListTeamMembersQueryKey,
 } from "@workspace/api-client-react";
+import type { TeamMember } from "@workspace/api-zod";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -165,6 +174,279 @@ function AttendeesDialog({ event }: { event: { id: number; title: string } }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const TEAM_CATEGORIES: { value: string; label: string; description: string }[] = [
+  { value: "editor_in_chief", label: "Editor-in-Chief", description: "Editorial leadership" },
+  { value: "webmaster", label: "Webmaster", description: "Platform and site maintenance" },
+  { value: "contributing_editor", label: "Contributing Editor", description: "Subspecialty editorial leads" },
+  { value: "sponsor", label: "Sponsor / Partner", description: "Organizations supporting OptMails" },
+];
+
+const teamMemberSchema = z.object({
+  category: z.string().min(1, "Category required"),
+  name: z.string().min(2, "Name is required"),
+  role: z.string().min(2, "Role or title is required"),
+  location: z.string().optional(),
+  bio: z.string().optional(),
+  email: z.string().email("Must be a valid email").optional().or(z.literal("")),
+  linkedin: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  websiteUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+});
+
+function TeamMemberFormDialog({
+  trigger,
+  initial,
+  onSubmit,
+  isSubmitting,
+  title,
+}: {
+  trigger: React.ReactNode;
+  initial?: Partial<z.infer<typeof teamMemberSchema>> & { category?: string };
+  onSubmit: (values: z.infer<typeof teamMemberSchema>, close: () => void) => void;
+  isSubmitting: boolean;
+  title: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof teamMemberSchema>>({
+    resolver: zodResolver(teamMemberSchema),
+    defaultValues: {
+      category: initial?.category ?? "contributing_editor",
+      name: initial?.name ?? "",
+      role: initial?.role ?? "",
+      location: initial?.location ?? "",
+      bio: initial?.bio ?? "",
+      email: initial?.email ?? "",
+      linkedin: initial?.linkedin ?? "",
+      websiteUrl: initial?.websiteUrl ?? "",
+      sortOrder: initial?.sortOrder ?? 0,
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) form.reset({
+      category: initial?.category ?? "contributing_editor",
+      name: initial?.name ?? "",
+      role: initial?.role ?? "",
+      location: initial?.location ?? "",
+      bio: initial?.bio ?? "",
+      email: initial?.email ?? "",
+      linkedin: initial?.linkedin ?? "",
+      websiteUrl: initial?.websiteUrl ?? "",
+      sortOrder: initial?.sortOrder ?? 0,
+    }); }}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Updates show on the public Team page immediately after saving.</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((v) => onSubmit(v, () => setOpen(false)))} className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-team-category"><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {TEAM_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl><Input placeholder="Dr. Jane Doe, OD" {...field} data-testid="input-team-name" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="role" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Role / Title</FormLabel>
+                <FormControl><Input placeholder="Contributing Editor · Pediatric Optometry" {...field} data-testid="input-team-role" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="location" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <FormControl><Input placeholder="City, Country" {...field} data-testid="input-team-location" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="bio" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Bio / Description</FormLabel>
+                <FormControl><Textarea className="min-h-[110px]" placeholder="Short biography or sponsor description" {...field} data-testid="input-team-bio" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email (optional)</FormLabel>
+                  <FormControl><Input type="email" placeholder="name@optmails.com" {...field} data-testid="input-team-email" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="linkedin" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>LinkedIn URL (optional)</FormLabel>
+                  <FormControl><Input placeholder="https://linkedin.com/in/..." {...field} data-testid="input-team-linkedin" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="websiteUrl" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Website URL (optional, sponsors)</FormLabel>
+                  <FormControl><Input placeholder="https://" {...field} data-testid="input-team-website" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="sortOrder" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sort order</FormLabel>
+                  <FormControl><Input type="number" min={0} {...field} data-testid="input-team-sort" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting} data-testid="button-save-team-member">
+                {isSubmitting ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TeamTab() {
+  const queryClient = useQueryClient();
+  const { data: members, isLoading } = useListTeamMembers({
+    query: { queryKey: getListTeamMembersQueryKey() },
+  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTeamMembersQueryKey() });
+
+  const createTeamMember = useCreateTeamMember({ mutation: { onSuccess: invalidate } });
+  const updateTeamMember = useUpdateTeamMember({ mutation: { onSuccess: invalidate } });
+  const deleteTeamMember = useDeleteTeamMember({ mutation: { onSuccess: invalidate } });
+
+  const handleDelete = (member: TeamMember) => {
+    if (confirm(`Remove ${member.name} from the team page?`)) {
+      deleteTeamMember.mutate({ id: member.id });
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-serif mb-2">Team & Sponsors</h1>
+          <p className="text-muted-foreground">Manage who appears on the public Meet Our Team page.</p>
+        </div>
+        <TeamMemberFormDialog
+          title="Add Team Member or Sponsor"
+          isSubmitting={createTeamMember.isPending}
+          onSubmit={(values, close) =>
+            createTeamMember.mutate(
+              { data: values },
+              { onSuccess: () => { invalidate(); close(); } }
+            )
+          }
+          trigger={
+            <Button data-testid="button-add-team-member">
+              <Plus className="mr-2 w-4 h-4" /> Add Member
+            </Button>
+          }
+        />
+      </div>
+
+      {TEAM_CATEGORIES.map((category) => {
+        const categoryMembers = (members ?? []).filter((m) => m.category === category.value);
+        return (
+          <Card key={category.value}>
+            <CardHeader>
+              <CardTitle>{category.label}</CardTitle>
+              <CardDescription>{category.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-24 w-full" />
+              ) : categoryMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No one in this group yet.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {categoryMembers.map((member) => (
+                    <div key={member.id} className="py-4 flex flex-col md:flex-row md:items-start gap-4 first:pt-0 last:pb-0" data-testid={`team-row-${member.id}`}>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-medium">{member.name}</h3>
+                          {member.location && (
+                            <Badge variant="outline" className="font-normal">{member.location}</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-primary">{member.role}</p>
+                        {member.bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">{member.bio}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
+                          {member.email && <span>{member.email}</span>}
+                          {member.linkedin && <span className="truncate">LinkedIn</span>}
+                          {member.websiteUrl && <span className="truncate">Website</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <TeamMemberFormDialog
+                          title={`Edit ${member.name}`}
+                          initial={member}
+                          isSubmitting={updateTeamMember.isPending}
+                          onSubmit={(values, close) =>
+                            updateTeamMember.mutate(
+                              { id: member.id, data: values },
+                              { onSuccess: () => { invalidate(); close(); } }
+                            )
+                          }
+                          trigger={
+                            <Button variant="outline" size="sm" data-testid={`button-edit-team-${member.id}`}>
+                              <Pencil className="mr-2 w-3.5 h-3.5" /> Edit
+                            </Button>
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(member)}
+                          disabled={deleteTeamMember.isPending}
+                          data-testid={`button-delete-team-${member.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 
@@ -354,6 +636,14 @@ export function Portal() {
             data-testid="tab-events"
           >
             <CalendarPlus className="mr-2 w-4 h-4" /> Events
+          </Button>
+          <Button
+            variant={activeTab === "team" ? "secondary" : "ghost"}
+            className="w-full justify-start font-medium"
+            onClick={() => setActiveTab("team")}
+            data-testid="tab-team"
+          >
+            <Users className="mr-2 w-4 h-4" /> Team
           </Button>
         </nav>
         <div className="p-4 border-t border-border mt-auto">
@@ -973,6 +1263,10 @@ export function Portal() {
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {activeTab === "team" && (
+            <TeamTab />
           )}
 
         </div>

@@ -1,86 +1,43 @@
 import { Link } from "wouter";
-import { Globe2, Mail, Linkedin, Sparkles, ArrowLeft } from "lucide-react";
+import { Globe2, Mail, Linkedin, Sparkles, ArrowLeft, ExternalLink } from "lucide-react";
+
+import {
+  useListTeamMembers,
+  getListTeamMembersQueryKey,
+} from "@workspace/api-client-react";
+import type { TeamMember } from "@workspace/api-zod";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
-type TeamMember = {
-  name: string;
-  role: string;
-  location: string;
-  bio: string;
-  email?: string;
-  linkedin?: string;
-};
-
-type Sponsor = {
-  name: string;
-  type: string;
-  description: string;
-  url?: string;
-};
-
-const editorInChief: TeamMember = {
-  name: "Dr. Ananya Iyer, OD, PhD",
-  role: "Editor-in-Chief",
-  location: "Bengaluru, India",
-  bio: "Cornea and contact lens specialist with two decades of clinical research. Founded OptMails to widen access to peer-reviewed optometry literature for trainees and practitioners worldwide.",
-  email: "ananya@optmails.com",
-  linkedin: "https://www.linkedin.com",
-};
-
-const webmaster: TeamMember = {
-  name: "Marcus Lee",
-  role: "Webmaster",
-  location: "Singapore",
-  bio: "Full-stack engineer maintaining the OptMails platform, archive infrastructure, and editorial portal. Keeps every issue accessible on slow connections and across devices.",
-  email: "marcus@optmails.com",
-};
-
-const contributingEditors: TeamMember[] = [
+const SECTIONS: { key: string; title: string; description: string; columns: string }[] = [
   {
-    name: "Lina Rodriguez, OD",
-    role: "Contributing Editor · Pediatric Optometry",
-    location: "Bogotá, Colombia",
-    bio: "Pediatric optometrist contributing case studies on amblyopia screening and binocular vision assessment in primary care settings.",
-    email: "lina@optmails.com",
+    key: "editor_in_chief",
+    title: "Editor-in-Chief",
+    description: "Sets the editorial direction, leads peer review, and signs off on every monthly issue.",
+    columns: "md:grid-cols-2",
   },
   {
-    name: "Fatima Al-Hassan, MSc",
-    role: "Contributing Editor · Public Health Optometry",
-    location: "Amman, Jordan",
-    bio: "Public health researcher curating reviews on access to refractive care and translating research abstracts for clinicians who do not work in English.",
-    email: "fatima@optmails.com",
+    key: "webmaster",
+    title: "Webmaster",
+    description: "Maintains the OptMails platform, archive, and editorial portal so that every issue stays online and accessible.",
+    columns: "md:grid-cols-2",
   },
   {
-    name: "Dr. James Okafor, OD",
-    role: "Contributing Editor · Ocular Disease",
-    location: "Lagos, Nigeria",
-    bio: "Glaucoma and retinal disease subspecialist reviewing submissions from clinicians and researchers across Sub-Saharan Africa.",
-    email: "james@optmails.com",
-  },
-];
-
-const sponsors: Sponsor[] = [
-  {
-    name: "International Council of Optometric Educators",
-    type: "Founding Sponsor",
-    description: "Supports the editorial board, peer-review honoraria, and the open archive that keeps every past issue free to read.",
-    url: "https://example.org",
+    key: "contributing_editor",
+    title: "Contributing Editors",
+    description: "Subspecialty leads who curate submissions, write commentary, and translate research for the wider OptMails community.",
+    columns: "md:grid-cols-2 lg:grid-cols-3",
   },
   {
-    name: "Vision For All Foundation",
-    type: "Community Partner",
-    description: "Underwrites travel grants for contributing student researchers from low- and middle-income countries.",
-    url: "https://example.org",
-  },
-  {
-    name: "ClearLens Optical",
-    type: "Industry Partner",
-    description: "Provides infrastructure credits and editorial tooling so the OptMails platform stays available to subscribers worldwide.",
+    key: "sponsor",
+    title: "Sponsors & Partners",
+    description: "Organizations whose ongoing support keeps OptMails free to read and globally accessible.",
+    columns: "md:grid-cols-2 lg:grid-cols-3",
   },
 ];
 
@@ -95,9 +52,13 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function testId(prefix: string, name: string) {
+  return `${prefix}-${name.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
 function MemberCard({ member }: { member: TeamMember }) {
   return (
-    <Card className="h-full" data-testid={`team-member-${member.name.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+    <Card className="h-full" data-testid={testId("team-member", member.name)}>
       <CardContent className="p-6 flex flex-col gap-4 h-full">
         <div className="flex items-start gap-4">
           <Avatar className="w-14 h-14">
@@ -108,17 +69,20 @@ function MemberCard({ member }: { member: TeamMember }) {
           <div className="min-w-0">
             <h3 className="font-serif text-xl leading-tight">{member.name}</h3>
             <p className="text-sm text-primary mt-1">{member.role}</p>
-            <p className="text-xs text-muted-foreground mt-1">{member.location}</p>
+            {member.location && (
+              <p className="text-xs text-muted-foreground mt-1">{member.location}</p>
+            )}
           </div>
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed flex-1">{member.bio}</p>
+        {member.bio && (
+          <p className="text-sm text-muted-foreground leading-relaxed flex-1">{member.bio}</p>
+        )}
         {(member.email || member.linkedin) && (
           <div className="flex items-center gap-3 pt-2 border-t border-border/60">
             {member.email && (
               <a
                 href={`mailto:${member.email}`}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                data-testid={`link-email-${member.name.toLowerCase().replace(/[^a-z]+/g, "-")}`}
               >
                 <Mail className="w-3.5 h-3.5" /> Email
               </a>
@@ -140,7 +104,35 @@ function MemberCard({ member }: { member: TeamMember }) {
   );
 }
 
+function SponsorCard({ member }: { member: TeamMember }) {
+  return (
+    <Card className="h-full" data-testid={testId("sponsor", member.name)}>
+      <CardContent className="p-6 flex flex-col gap-3 h-full">
+        <Badge variant="secondary" className="self-start">{member.role}</Badge>
+        <h3 className="font-serif text-xl leading-tight">{member.name}</h3>
+        {member.bio && (
+          <p className="text-sm text-muted-foreground leading-relaxed flex-1">{member.bio}</p>
+        )}
+        {member.websiteUrl && (
+          <a
+            href={member.websiteUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
+          >
+            Visit website <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function Team() {
+  const { data: members, isLoading } = useListTeamMembers({
+    query: { queryKey: getListTeamMembersQueryKey() },
+  });
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -181,71 +173,35 @@ export function Team() {
 
         <section className="py-12 md:py-16">
           <div className="container mx-auto px-4 max-w-6xl space-y-16">
-            <div>
-              <h2 className="text-3xl font-serif mb-2">Editor-in-Chief</h2>
-              <p className="text-muted-foreground mb-8 max-w-2xl">
-                Sets the editorial direction, leads peer review, and signs off on every monthly issue.
-              </p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <MemberCard member={editorInChief} />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div>
-              <h2 className="text-3xl font-serif mb-2">Webmaster</h2>
-              <p className="text-muted-foreground mb-8 max-w-2xl">
-                Maintains the OptMails platform, archive, and editorial portal so that every issue stays online and accessible.
-              </p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <MemberCard member={webmaster} />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div>
-              <h2 className="text-3xl font-serif mb-2">Contributing Editors</h2>
-              <p className="text-muted-foreground mb-8 max-w-2xl">
-                Subspecialty leads who curate submissions, write commentary, and translate research for the wider OptMails community.
-              </p>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {contributingEditors.map((member) => (
-                  <MemberCard key={member.name} member={member} />
-                ))}
-              </div>
-            </div>
-
-            <Separator />
-
-            <div>
-              <h2 className="text-3xl font-serif mb-2">Sponsors &amp; Partners</h2>
-              <p className="text-muted-foreground mb-8 max-w-2xl">
-                Organizations whose ongoing support keeps OptMails free to read and globally accessible.
-              </p>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sponsors.map((sponsor) => (
-                  <Card key={sponsor.name} className="h-full" data-testid={`sponsor-${sponsor.name.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
-                    <CardContent className="p-6 flex flex-col gap-3 h-full">
-                      <Badge variant="secondary" className="self-start">{sponsor.type}</Badge>
-                      <h3 className="font-serif text-xl leading-tight">{sponsor.name}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed flex-1">{sponsor.description}</p>
-                      {sponsor.url && (
-                        <a
-                          href={sponsor.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-primary hover:underline mt-1"
-                        >
-                          Visit website
-                        </a>
+            {SECTIONS.map((section, index) => {
+              const sectionMembers = (members ?? []).filter((m) => m.category === section.key);
+              return (
+                <div key={section.key}>
+                  {index > 0 && <Separator className="mb-16" />}
+                  <h2 className="text-3xl font-serif mb-2">{section.title}</h2>
+                  <p className="text-muted-foreground mb-8 max-w-2xl">{section.description}</p>
+                  {isLoading ? (
+                    <div className={`grid ${section.columns} gap-6`}>
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-48 w-full" />
+                      ))}
+                    </div>
+                  ) : sectionMembers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No one listed in this group yet.</p>
+                  ) : (
+                    <div className={`grid ${section.columns} gap-6`}>
+                      {sectionMembers.map((member) =>
+                        section.key === "sponsor" ? (
+                          <SponsorCard key={member.id} member={member} />
+                        ) : (
+                          <MemberCard key={member.id} member={member} />
+                        )
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-8 md:p-12 text-center">
