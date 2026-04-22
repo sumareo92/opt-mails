@@ -46,3 +46,16 @@ export const notificationsTable = pgTable("optmails_notifications", {
   status: text("status").notNull().default("Queued preview"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const eventsTable = pgTable("optmails_events", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  eventDate: timestamp("event_date").notNull(),
+  endDate: timestamp("end_date"),
+  location: text("location").notNull(),
+  format: text("format").notNull().default("Virtual"),
+  registrationUrl: text("registration_url").notNull().default(""),
+  host: text("host").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

@@ -18,6 +18,8 @@ import type {
 
 import type {
   Article,
+  CommunityEvent,
+  CreateEventRequest,
   CreateNotificationRequest,
   CreateSubmissionRequest,
   CreateSubscriberRequest,
@@ -264,6 +266,242 @@ export function useGetNewsletter<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List published newsletter issues (archive)
+ */
+export const getListNewslettersUrl = () => {
+  return `/api/newsletters`;
+};
+
+export const listNewsletters = async (
+  options?: RequestInit,
+): Promise<NewsletterIssue[]> => {
+  return customFetch<NewsletterIssue[]>(getListNewslettersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNewslettersQueryKey = () => {
+  return [`/api/newsletters`] as const;
+};
+
+export const getListNewslettersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNewsletters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNewsletters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListNewslettersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listNewsletters>>> = ({
+    signal,
+  }) => listNewsletters({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNewsletters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNewslettersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNewsletters>>
+>;
+export type ListNewslettersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List published newsletter issues (archive)
+ */
+
+export function useListNewsletters<
+  TData = Awaited<ReturnType<typeof listNewsletters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNewsletters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNewslettersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List upcoming community events
+ */
+export const getListEventsUrl = () => {
+  return `/api/events`;
+};
+
+export const listEvents = async (
+  options?: RequestInit,
+): Promise<CommunityEvent[]> => {
+  return customFetch<CommunityEvent[]>(getListEventsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListEventsQueryKey = () => {
+  return [`/api/events`] as const;
+};
+
+export const getListEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListEventsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvents>>> = ({
+    signal,
+  }) => listEvents({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEvents>>
+>;
+export type ListEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List upcoming community events
+ */
+
+export function useListEvents<
+  TData = Awaited<ReturnType<typeof listEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEventsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Announce a new community event
+ */
+export const getCreateEventUrl = () => {
+  return `/api/events`;
+};
+
+export const createEvent = async (
+  createEventRequest: CreateEventRequest,
+  options?: RequestInit,
+): Promise<CommunityEvent> => {
+  return customFetch<CommunityEvent>(getCreateEventUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createEventRequest),
+  });
+};
+
+export const getCreateEventMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEvent>>,
+    TError,
+    { data: BodyType<CreateEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createEvent>>,
+  TError,
+  { data: BodyType<CreateEventRequest> },
+  TContext
+> => {
+  const mutationKey = ["createEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createEvent>>,
+    { data: BodyType<CreateEventRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createEvent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createEvent>>
+>;
+export type CreateEventMutationBody = BodyType<CreateEventRequest>;
+export type CreateEventMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Announce a new community event
+ */
+export const useCreateEvent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEvent>>,
+    TError,
+    { data: BodyType<CreateEventRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createEvent>>,
+  TError,
+  { data: BodyType<CreateEventRequest> },
+  TContext
+> => {
+  return useMutation(getCreateEventMutationOptions(options));
+};
 
 /**
  * @summary List newsletter subscribers

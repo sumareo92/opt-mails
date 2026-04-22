@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { 
+  CalendarPlus,
   CheckCircle2, 
   Clock, 
   Globe2, 
   Inbox, 
   LayoutDashboard, 
-  Mail, 
+  Mail,
+  MapPin,
   Send, 
   Users, 
   XCircle,
@@ -22,12 +24,15 @@ import {
   useListSubmissions,
   useListSubscribers,
   useListNotifications,
+  useListEvents,
   useUpdateSubmission,
   useCreateNotificationPreview,
+  useCreateEvent,
   getGetDashboardQueryKey,
   getListSubmissionsQueryKey,
   getListSubscribersQueryKey,
-  getListNotificationsQueryKey
+  getListNotificationsQueryKey,
+  getListEventsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -54,6 +59,17 @@ const reviewSchema = z.object({
   reviewerNote: z.string().optional(),
 });
 
+const eventSchema = z.object({
+  title: z.string().min(5, "Title is required"),
+  description: z.string().min(10, "Description is required"),
+  eventDate: z.string().min(1, "Event date is required"),
+  endDate: z.string().optional(),
+  location: z.string().min(2, "Location is required"),
+  format: z.string().min(1, "Please select a format"),
+  registrationUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  host: z.string().min(2, "Host is required"),
+});
+
 export function Portal() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -61,6 +77,7 @@ export function Portal() {
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
 
   // Queries
   const { data: dashboard, isLoading: isLoadingDashboard } = useGetDashboard({
@@ -79,9 +96,14 @@ export function Portal() {
     query: { queryKey: getListNotificationsQueryKey() }
   });
 
+  const { data: events, isLoading: isLoadingEvents } = useListEvents({
+    query: { queryKey: getListEventsQueryKey() }
+  });
+
   // Mutations
   const updateSubmission = useUpdateSubmission();
   const createNotification = useCreateNotificationPreview();
+  const createEvent = useCreateEvent();
 
   // Forms
   const reviewForm = useForm<z.infer<typeof reviewSchema>>({
@@ -91,6 +113,47 @@ export function Portal() {
       reviewerNote: "",
     },
   });
+
+  const eventForm = useForm<z.infer<typeof eventSchema>>({
+    resolver: zodResolver(eventSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      eventDate: "",
+      endDate: "",
+      location: "",
+      format: "Virtual",
+      registrationUrl: "",
+      host: "OptMails Editorial Team",
+    },
+  });
+
+  const onCreateEvent = (values: z.infer<typeof eventSchema>) => {
+    const data = {
+      ...values,
+      eventDate: new Date(values.eventDate).toISOString(),
+      endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+      registrationUrl: values.registrationUrl || undefined,
+    };
+    createEvent.mutate({ data }, {
+      onSuccess: () => {
+        toast({
+          title: "Event announced",
+          description: "The community event is now live on the public site.",
+        });
+        queryClient.invalidateQueries({ queryKey: getListEventsQueryKey() });
+        eventForm.reset();
+        setIsEventDialogOpen(false);
+      },
+      onError: () => {
+        toast({
+          title: "Could not announce event",
+          description: "Please review the details and try again.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
 
   const notificationForm = useForm<z.infer<typeof notificationSchema>>({
     resolver: zodResolver(notificationSchema),
@@ -185,6 +248,14 @@ export function Portal() {
             onClick={() => setActiveTab("notifications")}
           >
             <Mail className="mr-2 w-4 h-4" /> Notifications
+          </Button>
+          <Button
+            variant={activeTab === "events" ? "secondary" : "ghost"}
+            className="w-full justify-start font-medium"
+            onClick={() => setActiveTab("events")}
+            data-testid="tab-events"
+          >
+            <CalendarPlus className="mr-2 w-4 h-4" /> Events
           </Button>
         </nav>
         <div className="p-4 border-t border-border mt-auto">
@@ -652,6 +723,152 @@ export function Portal() {
                       )}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Events Tab */}
+          {activeTab === "events" && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-serif mb-2">Community Events</h1>
+                  <p className="text-muted-foreground">Announce upcoming workshops, roundtables, and lab sessions for the community.</p>
+                </div>
+                <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-announce-event">
+                      <CalendarPlus className="mr-2 w-4 h-4" /> Announce Event
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Announce a Community Event</DialogTitle>
+                      <DialogDescription>
+                        Published events appear immediately on the public OptMails homepage.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Form {...eventForm}>
+                      <form onSubmit={eventForm.handleSubmit(onCreateEvent)} className="space-y-4">
+                        <FormField control={eventForm.control} name="title" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Event Title</FormLabel>
+                            <FormControl><Input placeholder="Global Optometry Research Roundtable" {...field} data-testid="input-event-title" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={eventForm.control} name="description" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description</FormLabel>
+                            <FormControl><Textarea className="min-h-[100px]" placeholder="What will attendees experience?" {...field} data-testid="input-event-description" /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField control={eventForm.control} name="eventDate" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Start (Date & Time)</FormLabel>
+                              <FormControl><Input type="datetime-local" {...field} data-testid="input-event-date" /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={eventForm.control} name="endDate" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>End (Optional)</FormLabel>
+                              <FormControl><Input type="datetime-local" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={eventForm.control} name="format" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Format</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select format" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Virtual">Virtual</SelectItem>
+                                  <SelectItem value="In-person">In-person</SelectItem>
+                                  <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={eventForm.control} name="location" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Location</FormLabel>
+                              <FormControl><Input placeholder="Online (Zoom) or city" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={eventForm.control} name="host" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Host</FormLabel>
+                              <FormControl><Input placeholder="OptMails Editorial Team" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={eventForm.control} name="registrationUrl" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Registration URL (Optional)</FormLabel>
+                              <FormControl><Input placeholder="https://..." {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <DialogFooter>
+                          <Button type="button" variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
+                          <Button type="submit" disabled={createEvent.isPending} data-testid="button-submit-event">
+                            {createEvent.isPending ? "Publishing..." : "Publish Event"}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Events</CardTitle>
+                  <CardDescription>Visible to subscribers and visitors on the homepage.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingEvents ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+                    </div>
+                  ) : events && events.length > 0 ? (
+                    <div className="space-y-3">
+                      {events.map((event) => (
+                        <div key={event.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 rounded-lg border border-border" data-testid={`portal-event-${event.id}`}>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary">{event.format}</Badge>
+                              <span className="text-xs text-muted-foreground">Hosted by {event.host}</span>
+                            </div>
+                            <h3 className="font-medium truncate">{event.title}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
+                          </div>
+                          <div className="text-sm text-muted-foreground space-y-1 md:text-right shrink-0">
+                            <div className="flex items-center gap-2 md:justify-end">
+                              <Clock className="w-3.5 h-3.5" />
+                              {format(new Date(event.eventDate), "MMM d, yyyy · h:mm a")}
+                            </div>
+                            <div className="flex items-center gap-2 md:justify-end">
+                              <MapPin className="w-3.5 h-3.5" />
+                              {event.location}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <CalendarPlus className="w-10 h-10 mx-auto mb-3" />
+                      <p>No upcoming events. Use Announce Event to publish your first one.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

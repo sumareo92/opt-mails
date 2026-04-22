@@ -1,19 +1,23 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq, gte } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   articlesTable,
   db,
+  eventsTable,
   notificationsTable,
   subscribersTable,
   submissionsTable,
 } from "@workspace/db";
 import {
+  CreateEventBody,
   CreateNotificationPreviewBody,
   CreateSubmissionBody,
   CreateSubscriberBody,
   GetDashboardResponse,
   GetNewsletterResponse,
   ListArticlesResponse,
+  ListEventsResponse,
+  ListNewslettersResponse,
   ListNotificationsResponse,
   ListSubscribersResponse,
   ListSubmissionsResponse,
@@ -73,6 +77,88 @@ router.get("/newsletter", async (_req, res): Promise<void> => {
   };
 
   res.json(GetNewsletterResponse.parse(data));
+});
+
+const eventResponse = (event: typeof eventsTable.$inferSelect) => ({
+  ...event,
+  eventDate: toIso(event.eventDate),
+  endDate: event.endDate ? toIso(event.endDate) : "",
+  createdAt: toIso(event.createdAt),
+});
+
+router.get("/newsletters", async (_req, res): Promise<void> => {
+  const articles = await db
+    .select()
+    .from(articlesTable)
+    .orderBy(desc(articlesTable.createdAt));
+
+  const grouped = new Map<string, typeof articles>();
+  for (const article of articles) {
+    const existing = grouped.get(article.issueMonth) ?? [];
+    existing.push(article);
+    grouped.set(article.issueMonth, existing);
+  }
+
+  const issues = Array.from(grouped.entries()).map(([month, items], index) => ({
+    id: index + 1,
+    month,
+    title: `OptMails Monthly Research Digest`,
+    editorNote:
+      "Featured optometry research, contributor highlights, and publishing opportunities curated for the global community.",
+    status: "Archived",
+    articles: items.map(articleResponse),
+  }));
+
+  if (issues[0]) {
+    issues[0].status = "Open for contributions";
+  }
+
+  res.json(ListNewslettersResponse.parse(issues));
+});
+
+router.get("/events", async (_req, res): Promise<void> => {
+  const now = new Date();
+  const events = await db
+    .select()
+    .from(eventsTable)
+    .where(gte(eventsTable.eventDate, now))
+    .orderBy(asc(eventsTable.eventDate));
+
+  res.json(ListEventsResponse.parse(events.map(eventResponse)));
+});
+
+router.post("/events", async (req, res): Promise<void> => {
+  const parsed = CreateEventBody.safeParse(req.body);
+
+  if (!parsed.success) {
+    req.log.warn({ errors: parsed.error.message }, "Invalid event body");
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const eventDate = new Date(parsed.data.eventDate);
+  const endDate = parsed.data.endDate ? new Date(parsed.data.endDate) : null;
+
+  if (Number.isNaN(eventDate.getTime())) {
+    res.status(400).json({ error: "Invalid eventDate" });
+    return;
+  }
+
+  const [event] = await db
+    .insert(eventsTable)
+    .values({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      eventDate,
+      endDate,
+      location: parsed.data.location,
+      format: parsed.data.format,
+      registrationUrl: parsed.data.registrationUrl ?? "",
+      host: parsed.data.host,
+    })
+    .returning();
+
+  res.status(201).json(ListEventsResponse.element.parse(eventResponse(event)));
 });
 
 router.get("/subscribers", async (_req, res): Promise<void> => {

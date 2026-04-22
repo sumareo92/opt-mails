@@ -51,6 +51,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NewsletterIssue"
+  /newsletters:
+    get:
+      operationId: listNewsletters
+      tags: [optmails]
+      summary: List published newsletter issues (archive)
+      responses:
+        "200":
+          description: Archived newsletter issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NewsletterIssue"
+  /events:
+    get:
+      operationId: listEvents
+      tags: [optmails]
+      summary: List upcoming community events
+      responses:
+        "200":
+          description: Community events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommunityEvent"
+    post:
+      operationId: createEvent
+      tags: [optmails]
+      summary: Announce a new community event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventRequest"
+      responses:
+        "201":
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityEvent"
   /subscribers:
     get:
       operationId: listSubscribers
@@ -346,6 +391,50 @@ components:
         body:
           type: string
       required: [subject, body]
+    CommunityEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        eventDate:
+          type: string
+        endDate:
+          type: string
+        location:
+          type: string
+        format:
+          type: string
+        registrationUrl:
+          type: string
+        host:
+          type: string
+        createdAt:
+          type: string
+      required: [id, title, description, eventDate, endDate, location, format, registrationUrl, host, createdAt]
+    CreateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        eventDate:
+          type: string
+        endDate:
+          type: string
+        location:
+          type: string
+        format:
+          type: string
+        registrationUrl:
+          type: string
+        host:
+          type: string
+      required: [title, description, eventDate, location, format, host]
     DashboardSummary:
       type: object
       properties:

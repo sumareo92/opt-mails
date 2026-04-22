@@ -94,6 +94,30 @@ export interface CreateNotificationRequest {
   body: string;
 }
 
+export interface CommunityEvent {
+  id: number;
+  title: string;
+  description: string;
+  eventDate: string;
+  endDate: string;
+  location: string;
+  format: string;
+  registrationUrl: string;
+  host: string;
+  createdAt: string;
+}
+
+export interface CreateEventRequest {
+  title: string;
+  description: string;
+  eventDate: string;
+  endDate?: string;
+  location: string;
+  format: string;
+  registrationUrl?: string;
+  host: string;
+}
+
 export type DashboardSummaryStatusBreakdownItem = {
   status: string;
   count: number;

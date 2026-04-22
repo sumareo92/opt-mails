@@ -7,6 +7,8 @@
  */
 
 export * from "./article";
+export * from "./communityEvent";
+export * from "./createEventRequest";
 export * from "./createNotificationRequest";
 export * from "./createSubmissionRequest";
 export * from "./createSubscriberRequest";

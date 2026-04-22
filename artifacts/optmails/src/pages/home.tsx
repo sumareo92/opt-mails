@@ -2,15 +2,19 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link } from "wouter";
-import { ArrowRight, BookOpen, Clock, Globe2, Newspaper, Send, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Calendar, Clock, Globe2, Library, MapPin, Newspaper, Send, Sparkles, Users } from "lucide-react";
 
 import { 
   useListArticles, 
   useGetNewsletter, 
+  useListNewsletters,
+  useListEvents,
   useCreateSubscriber, 
   useCreateSubmission,
   getListArticlesQueryKey,
-  getGetNewsletterQueryKey
+  getGetNewsletterQueryKey,
+  getListNewslettersQueryKey,
+  getListEventsQueryKey,
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +57,24 @@ export function Home() {
   const { data: newsletter, isLoading: isLoadingNewsletter } = useGetNewsletter({
     query: { queryKey: getGetNewsletterQueryKey() }
   });
+
+  const { data: archivedIssues, isLoading: isLoadingArchive } = useListNewsletters({
+    query: { queryKey: getListNewslettersQueryKey() }
+  });
+
+  const { data: events, isLoading: isLoadingEvents } = useListEvents({
+    query: { queryKey: getListEventsQueryKey() }
+  });
+
+  const formatEventDate = (iso: string) => {
+    const date = new Date(iso);
+    return {
+      day: date.toLocaleString(undefined, { day: "2-digit" }),
+      month: date.toLocaleString(undefined, { month: "short" }).toUpperCase(),
+      year: date.toLocaleString(undefined, { year: "numeric" }),
+      time: date.toLocaleString(undefined, { hour: "numeric", minute: "2-digit" }),
+    };
+  };
 
   const createSubscriber = useCreateSubscriber();
   const createSubmission = useCreateSubmission();
@@ -134,6 +156,8 @@ export function Home() {
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
             <a href="#newsletter" className="hover:text-foreground transition-colors">Newsletter</a>
             <a href="#articles" className="hover:text-foreground transition-colors">Featured Research</a>
+            <a href="#events" className="hover:text-foreground transition-colors">Events</a>
+            <a href="#archive" className="hover:text-foreground transition-colors">Archive</a>
             <a href="#submit" className="hover:text-foreground transition-colors">Submit</a>
             <Link href="/portal" className="text-primary hover:text-primary/80 transition-colors">Editorial Portal</Link>
           </nav>
@@ -313,8 +337,8 @@ export function Home() {
                   Curated highlights from international journals and clinical studies, selected by our editorial team.
                 </p>
               </div>
-              <Button variant="ghost" className="shrink-0 gap-2">
-                View Archive <ArrowRight className="w-4 h-4" />
+              <Button variant="ghost" className="shrink-0 gap-2" asChild data-testid="link-view-archive">
+                <a href="#archive">View Archive <ArrowRight className="w-4 h-4" /></a>
               </Button>
             </div>
 
@@ -368,6 +392,180 @@ export function Home() {
                 <Newspaper className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No articles featured yet</h3>
                 <p className="text-muted-foreground">Check back soon for the latest research highlights.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Upcoming Community Events Section */}
+        <section id="events" className="py-20 border-y border-border bg-card">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-px bg-primary"></span>
+                  <span className="text-primary font-medium tracking-wide uppercase text-sm">Community</span>
+                </div>
+                <h2 className="text-4xl font-serif mb-4">Upcoming Events</h2>
+                <p className="text-muted-foreground max-w-2xl text-lg">
+                  Workshops, roundtables, and open labs hosted with our international optometry community.
+                </p>
+              </div>
+            </div>
+
+            {isLoadingEvents ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="h-full">
+                    <CardHeader>
+                      <Skeleton className="h-4 w-24 mb-2" />
+                      <Skeleton className="h-6 w-full" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-20 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : events && events.length > 0 ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.map((event) => {
+                  const date = formatEventDate(event.eventDate);
+                  return (
+                    <Card key={event.id} data-testid={`card-event-${event.id}`} className="flex flex-col h-full hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start gap-4">
+                          <div className="flex flex-col items-center justify-center bg-primary/10 text-primary rounded-lg w-16 h-16 shrink-0">
+                            <span className="text-xs font-medium tracking-wide">{date.month}</span>
+                            <span className="text-2xl font-serif leading-none">{date.day}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <Badge variant="secondary" className="mb-2 font-medium">{event.format}</Badge>
+                            <CardTitle className="font-serif text-xl leading-snug">{event.title}</CardTitle>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-3">
+                        <p className="text-muted-foreground text-sm line-clamp-3">{event.description}</p>
+                        <div className="space-y-1.5 text-sm text-muted-foreground pt-2 border-t border-border/50">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <span>{date.month} {date.day}, {date.year} · {date.time}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{event.location}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Hosted by {event.host}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                      {event.registrationUrl ? (
+                        <CardFooter className="pt-4 border-t border-border/50">
+                          <Button variant="ghost" className="w-full justify-between" asChild>
+                            <a href={event.registrationUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-register-${event.id}`}>
+                              Register / Details <ArrowRight className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </CardFooter>
+                      ) : null}
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-background rounded-xl border border-border">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No upcoming events scheduled</h3>
+                <p className="text-muted-foreground">Check back soon for community workshops and roundtables.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Newsletter Archive Section */}
+        <section id="archive" className="py-20 bg-secondary/30 border-b border-border">
+          <div className="container mx-auto px-4">
+            <div className="mb-12">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-primary"></span>
+                <span className="text-primary font-medium tracking-wide uppercase text-sm">Archive</span>
+              </div>
+              <h2 className="text-4xl font-serif mb-4">Past Newsletters</h2>
+              <p className="text-muted-foreground max-w-2xl text-lg">
+                Browse previous monthly issues and revisit research featured in earlier editions.
+              </p>
+            </div>
+
+            {isLoadingArchive ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-32 w-full" />
+                ))}
+              </div>
+            ) : archivedIssues && archivedIssues.length > 0 ? (
+              <div className="space-y-4">
+                {archivedIssues.map((issue) => (
+                  <Card key={`${issue.id}-${issue.month}`} data-testid={`card-issue-${issue.month.replace(/\s+/g, "-")}`} className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Library className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className="font-medium">{issue.month}</Badge>
+                              <Badge variant="secondary" className="font-medium">{issue.status}</Badge>
+                            </div>
+                            <CardTitle className="font-serif text-xl">{issue.title}</CardTitle>
+                          </div>
+                        </div>
+                        <span className="text-sm text-muted-foreground flex items-center gap-2 md:shrink-0">
+                          <BookOpen className="w-4 h-4" />
+                          {issue.articles?.length || 0} featured articles
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground text-sm mb-4">{issue.editorNote}</p>
+                      {issue.articles && issue.articles.length > 0 ? (
+                        <ul className="divide-y divide-border/60 border-t border-border/60">
+                          {issue.articles.map((article) => (
+                            <li key={article.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                              <div className="min-w-0">
+                                <a
+                                  href={article.sourceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium hover:text-primary transition-colors line-clamp-1"
+                                  data-testid={`link-archive-article-${article.id}`}
+                                >
+                                  {article.title}
+                                </a>
+                                <p className="text-xs text-muted-foreground mt-0.5">{article.authors}</p>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                                <Badge variant="outline">{article.category}</Badge>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> {article.readMinutes} min
+                                </span>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-background rounded-xl border border-border">
+                <Library className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">Archive is being curated</h3>
+                <p className="text-muted-foreground">Past issues will appear here as they are published.</p>
               </div>
             )}
           </div>

@@ -58,6 +58,63 @@ export const GetNewsletterResponse = zod.object({
 });
 
 /**
+ * @summary List published newsletter issues (archive)
+ */
+export const ListNewslettersResponseItem = zod.object({
+  id: zod.number(),
+  month: zod.string(),
+  title: zod.string(),
+  editorNote: zod.string(),
+  status: zod.string(),
+  articles: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      authors: zod.string(),
+      summary: zod.string(),
+      category: zod.string(),
+      sourceUrl: zod.string(),
+      issueMonth: zod.string(),
+      readMinutes: zod.number(),
+      featured: zod.boolean(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+export const ListNewslettersResponse = zod.array(ListNewslettersResponseItem);
+
+/**
+ * @summary List upcoming community events
+ */
+export const ListEventsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string(),
+  eventDate: zod.string(),
+  endDate: zod.string(),
+  location: zod.string(),
+  format: zod.string(),
+  registrationUrl: zod.string(),
+  host: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListEventsResponse = zod.array(ListEventsResponseItem);
+
+/**
+ * @summary Announce a new community event
+ */
+export const CreateEventBody = zod.object({
+  title: zod.string(),
+  description: zod.string(),
+  eventDate: zod.string(),
+  endDate: zod.string().optional(),
+  location: zod.string(),
+  format: zod.string(),
+  registrationUrl: zod.string().optional(),
+  host: zod.string(),
+});
+
+/**
  * @summary List newsletter subscribers
  */
 export const ListSubscribersResponseItem = zod.object({
