@@ -115,6 +115,36 @@ export const CreateEventBody = zod.object({
 });
 
 /**
+ * @summary List RSVPs for an event
+ */
+export const ListEventRsvpsParams = zod.object({
+  eventId: zod.coerce.number(),
+});
+
+export const ListEventRsvpsResponseItem = zod.object({
+  id: zod.number(),
+  eventId: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListEventRsvpsResponse = zod.array(ListEventRsvpsResponseItem);
+
+/**
+ * @summary Register an RSVP for an event
+ */
+export const CreateEventRsvpParams = zod.object({
+  eventId: zod.coerce.number(),
+});
+
+export const CreateEventRsvpBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.string().optional(),
+});
+
+/**
  * @summary List newsletter subscribers
  */
 export const ListSubscribersResponseItem = zod.object({

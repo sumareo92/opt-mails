@@ -96,6 +96,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CommunityEvent"
+  /events/{eventId}/rsvps:
+    get:
+      operationId: listEventRsvps
+      tags: [optmails]
+      summary: List RSVPs for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: RSVPs for the event
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventRsvp"
+    post:
+      operationId: createEventRsvp
+      tags: [optmails]
+      summary: Register an RSVP for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventRsvpRequest"
+      responses:
+        "201":
+          description: RSVP recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventRsvp"
   /subscribers:
     get:
       operationId: listSubscribers
@@ -435,6 +478,32 @@ components:
         host:
           type: string
       required: [title, description, eventDate, location, format, host]
+    EventRsvp:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+      required: [id, eventId, name, email, role, createdAt]
+    CreateEventRsvpRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+      required: [name, email]
     DashboardSummary:
       type: object
       properties:

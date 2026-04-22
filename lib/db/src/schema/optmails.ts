@@ -59,3 +59,12 @@ export const eventsTable = pgTable("optmails_events", {
   host: text("host").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const eventRsvpsTable = pgTable("optmails_event_rsvps", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

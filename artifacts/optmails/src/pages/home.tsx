@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,11 +12,15 @@ import {
   useListEvents,
   useCreateSubscriber, 
   useCreateSubmission,
+  useCreateEventRsvp,
+  useListEventRsvps,
   getListArticlesQueryKey,
   getGetNewsletterQueryKey,
   getListNewslettersQueryKey,
   getListEventsQueryKey,
+  getListEventRsvpsQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +32,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const subscribeSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -35,6 +49,148 @@ const subscribeSchema = z.object({
   country: z.string().min(2, "Country is required"),
   interests: z.string().optional(),
 });
+
+const rsvpSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  role: z.string().optional(),
+});
+
+type EventLite = {
+  id: number;
+  title: string;
+  eventDate: string;
+  location: string;
+  format: string;
+};
+
+function EventRsvpDialog({ event }: { event: EventLite }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: rsvps } = useListEventRsvps(event.id, {
+    query: { queryKey: getListEventRsvpsQueryKey(event.id) },
+  });
+
+  const createRsvp = useCreateEventRsvp();
+
+  const form = useForm<z.infer<typeof rsvpSchema>>({
+    resolver: zodResolver(rsvpSchema),
+    defaultValues: { name: "", email: "", role: "" },
+  });
+
+  const onSubmit = (values: z.infer<typeof rsvpSchema>) => {
+    createRsvp.mutate(
+      { eventId: event.id, data: { ...values, role: values.role || "" } },
+      {
+        onSuccess: () => {
+          toast({
+            title: "RSVP confirmed",
+            description: `You're registered for ${event.title}.`,
+          });
+          queryClient.invalidateQueries({
+            queryKey: getListEventRsvpsQueryKey(event.id),
+          });
+          form.reset();
+          setOpen(false);
+        },
+        onError: () => {
+          toast({
+            title: "RSVP failed",
+            description: "Please check your details and try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          className="w-full justify-between"
+          data-testid={`button-rsvp-${event.id}`}
+        >
+          RSVP {rsvps && rsvps.length > 0 ? `· ${rsvps.length} attending` : ""}
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-serif">{event.title}</DialogTitle>
+          <DialogDescription>
+            Save your spot. We'll send confirmation details to your email.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Jane Doe" {...field} data-testid={`input-rsvp-name-${event.id}`} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="jane@example.com" {...field} data-testid={`input-rsvp-email-${event.id}`} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="clinician">Clinician</SelectItem>
+                      <SelectItem value="researcher">Researcher</SelectItem>
+                      <SelectItem value="academic">Academic</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createRsvp.isPending} data-testid={`button-confirm-rsvp-${event.id}`}>
+                {createRsvp.isPending ? "Saving..." : "Confirm RSVP"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const submissionSchema = z.object({
   submitterName: z.string().min(2, "Name is required"),
@@ -462,15 +618,16 @@ export function Home() {
                           </div>
                         </div>
                       </CardContent>
-                      {event.registrationUrl ? (
-                        <CardFooter className="pt-4 border-t border-border/50">
-                          <Button variant="ghost" className="w-full justify-between" asChild>
+                      <CardFooter className="pt-4 border-t border-border/50 flex-col gap-1">
+                        <EventRsvpDialog event={event} />
+                        {event.registrationUrl ? (
+                          <Button variant="link" className="w-full justify-center text-xs" asChild>
                             <a href={event.registrationUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-register-${event.id}`}>
-                              Register / Details <ArrowRight className="w-4 h-4" />
+                              External details
                             </a>
                           </Button>
-                        </CardFooter>
-                      ) : null}
+                        ) : null}
+                      </CardFooter>
                     </Card>
                   );
                 })}

@@ -3,6 +3,7 @@ import { Router, type IRouter } from "express";
 import {
   articlesTable,
   db,
+  eventRsvpsTable,
   eventsTable,
   notificationsTable,
   subscribersTable,
@@ -10,12 +11,14 @@ import {
 } from "@workspace/db";
 import {
   CreateEventBody,
+  CreateEventRsvpBody,
   CreateNotificationPreviewBody,
   CreateSubmissionBody,
   CreateSubscriberBody,
   GetDashboardResponse,
   GetNewsletterResponse,
   ListArticlesResponse,
+  ListEventRsvpsResponse,
   ListEventsResponse,
   ListNewslettersResponse,
   ListNotificationsResponse,
@@ -159,6 +162,64 @@ router.post("/events", async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(ListEventsResponse.element.parse(eventResponse(event)));
+});
+
+router.get("/events/:eventId/rsvps", async (req, res): Promise<void> => {
+  const eventId = Number(req.params.eventId);
+  if (!Number.isFinite(eventId)) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(eventRsvpsTable)
+    .where(eq(eventRsvpsTable.eventId, eventId))
+    .orderBy(desc(eventRsvpsTable.createdAt));
+
+  const data = rows.map((row) => ({
+    ...row,
+    createdAt: toIso(row.createdAt),
+  }));
+  res.json(ListEventRsvpsResponse.parse(data));
+});
+
+router.post("/events/:eventId/rsvps", async (req, res): Promise<void> => {
+  const eventId = Number(req.params.eventId);
+  if (!Number.isFinite(eventId)) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  const parsed = CreateEventRsvpBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [event] = await db
+    .select()
+    .from(eventsTable)
+    .where(eq(eventsTable.id, eventId))
+    .limit(1);
+  if (!event) {
+    res.status(404).json({ error: "Event not found" });
+    return;
+  }
+  const [rsvp] = await db
+    .insert(eventRsvpsTable)
+    .values({
+      eventId,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      role: parsed.data.role ?? "",
+    })
+    .returning();
+  res
+    .status(201)
+    .json(
+      ListEventRsvpsResponse.element.parse({
+        ...rsvp,
+        createdAt: toIso(rsvp.createdAt),
+      }),
+    );
 });
 
 router.get("/subscribers", async (_req, res): Promise<void> => {

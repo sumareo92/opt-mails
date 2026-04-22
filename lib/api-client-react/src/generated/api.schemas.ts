@@ -118,6 +118,21 @@ export interface CreateEventRequest {
   host: string;
 }
 
+export interface EventRsvp {
+  id: number;
+  eventId: number;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface CreateEventRsvpRequest {
+  name: string;
+  email: string;
+  role?: string;
+}
+
 export type DashboardSummaryStatusBreakdownItem = {
   status: string;
   count: number;
