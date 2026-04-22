@@ -4,7 +4,8 @@ import { format } from "date-fns";
 import { 
   CalendarPlus,
   CheckCircle2, 
-  Clock, 
+  Clock,
+  Download,
   Globe2, 
   Inbox, 
   LayoutDashboard, 
@@ -25,6 +26,7 @@ import {
   useListSubscribers,
   useListNotifications,
   useListEvents,
+  useListEventRsvps,
   useUpdateSubmission,
   useCreateNotificationPreview,
   useCreateEvent,
@@ -33,6 +35,7 @@ import {
   getListSubscribersQueryKey,
   getListNotificationsQueryKey,
   getListEventsQueryKey,
+  getListEventRsvpsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -69,6 +72,101 @@ const eventSchema = z.object({
   registrationUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   host: z.string().min(2, "Host is required"),
 });
+
+function AttendeesDialog({ event }: { event: { id: number; title: string } }) {
+  const [open, setOpen] = useState(false);
+  const { data: rsvps, isLoading } = useListEventRsvps(event.id, {
+    query: { queryKey: getListEventRsvpsQueryKey(event.id), enabled: open },
+  });
+
+  const exportCsv = () => {
+    if (!rsvps || rsvps.length === 0) return;
+    const header = ["Name", "Email", "Role", "Registered"];
+    const rows = rsvps.map((r) => [
+      r.name,
+      r.email,
+      r.role || "",
+      new Date(r.createdAt).toISOString(),
+    ]);
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => escape(String(cell))).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `optmails-event-${event.id}-attendees.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" data-testid={`button-attendees-${event.id}`}>
+          <Users className="mr-2 w-4 h-4" /> Attendees
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-serif">Attendees · {event.title}</DialogTitle>
+          <DialogDescription>
+            {rsvps ? `${rsvps.length} ${rsvps.length === 1 ? "person has" : "people have"} RSVPed.` : "Loading RSVPs..."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[420px] overflow-y-auto border border-border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="text-right">Registered</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    <Skeleton className="h-6 w-32 mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : rsvps && rsvps.length > 0 ? (
+                rsvps.map((rsvp) => (
+                  <TableRow key={rsvp.id} data-testid={`attendee-row-${rsvp.id}`}>
+                    <TableCell className="font-medium">{rsvp.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{rsvp.email}</TableCell>
+                    <TableCell>
+                      {rsvp.role ? <Badge variant="secondary">{rsvp.role}</Badge> : <span className="text-muted-foreground text-xs">—</span>}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {format(new Date(rsvp.createdAt), "MMM d, yyyy · h:mm a")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                    No RSVPs yet for this event.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+          <Button onClick={exportCsv} disabled={!rsvps || rsvps.length === 0} data-testid={`button-export-attendees-${event.id}`}>
+            <Download className="mr-2 w-4 h-4" /> Export CSV
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function Portal() {
   const { toast } = useToast();
@@ -850,15 +948,18 @@ export function Portal() {
                             <h3 className="font-medium truncate">{event.title}</h3>
                             <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
                           </div>
-                          <div className="text-sm text-muted-foreground space-y-1 md:text-right shrink-0">
-                            <div className="flex items-center gap-2 md:justify-end">
-                              <Clock className="w-3.5 h-3.5" />
-                              {format(new Date(event.eventDate), "MMM d, yyyy · h:mm a")}
+                          <div className="flex flex-col md:items-end gap-2 shrink-0">
+                            <div className="text-sm text-muted-foreground space-y-1 md:text-right">
+                              <div className="flex items-center gap-2 md:justify-end">
+                                <Clock className="w-3.5 h-3.5" />
+                                {format(new Date(event.eventDate), "MMM d, yyyy · h:mm a")}
+                              </div>
+                              <div className="flex items-center gap-2 md:justify-end">
+                                <MapPin className="w-3.5 h-3.5" />
+                                {event.location}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 md:justify-end">
-                              <MapPin className="w-3.5 h-3.5" />
-                              {event.location}
-                            </div>
+                            <AttendeesDialog event={event} />
                           </div>
                         </div>
                       ))}
