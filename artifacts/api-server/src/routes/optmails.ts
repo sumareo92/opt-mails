@@ -317,10 +317,20 @@ router.patch("/submissions/:id", async (req, res): Promise<void> => {
   const params = UpdateSubmissionParams.safeParse(req.params);
   const body = UpdateSubmissionBody.safeParse(req.body);
 
-  if (!params.success || !body.success) {
-    res.status(400).json({
-      error: !params.success ? params.error.message : body.error.message,
-    });
+  // if (!params.success || !body.success) {
+  //   res.status(400).json({
+  //     error: !params.success ? params.error.message : body.error.message,
+  //   });
+  //   return;
+  // }
+
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
     return;
   }
 
@@ -391,10 +401,21 @@ router.post("/team-members", async (req, res): Promise<void> => {
 router.patch("/team-members/:id", async (req, res): Promise<void> => {
   const params = UpdateTeamMemberParams.safeParse(req.params);
   const body = UpdateTeamMemberBody.safeParse(req.body);
-  if (!params.success || !body.success) {
-    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  // if (!params.success || !body.success) {
+  //   res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  //   return;
+  // }
+
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
+
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
   const [member] = await db
     .update(teamMembersTable)
     .set({
@@ -476,10 +497,21 @@ router.post("/donation-methods", async (req, res): Promise<void> => {
 router.patch("/donation-methods/:id", async (req, res): Promise<void> => {
   const params = UpdateDonationMethodParams.safeParse(req.params);
   const body = UpdateDonationMethodBody.safeParse(req.body);
-  if (!params.success || !body.success) {
-    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  // if (!params.success || !body.success) {
+  //   res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  //   return;
+  // }
+
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
+
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
   const [method] = await db
     .update(donationMethodsTable)
     .set({
