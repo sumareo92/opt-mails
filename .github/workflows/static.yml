@@ -49,8 +49,10 @@ jobs:
 
       # 4. Run the build command you found in package.json
       - name: Build project
-        # run: pnpm run build
+        # We provide a default PORT so the vite.config.ts doesn't crash
         run: pnpm --filter "@workspace/optmails" run build
+        env:
+          PORT: 3000
 
       # 5. Upload the RESULT of the build
       - name: Upload artifact
